@@ -2,7 +2,7 @@
 
 ## Projeto
 
-BoxDetail é um SaaS multi-tenant para oficinas de estética automotiva. Cada tenant representa uma loja/oficina e deve isolar dados operacionais como clientes, veículos, serviços, agenda, orçamentos, assinaturas, fidelidade, automações e landing pages.
+GarageON é um SaaS multi-tenant para oficinas de estética automotiva. Cada tenant representa uma loja/oficina e deve isolar dados operacionais como clientes, veículos, serviços, agenda, orçamentos, assinaturas, fidelidade, automações e landing pages.
 
 ## Stack
 
@@ -10,6 +10,12 @@ BoxDetail é um SaaS multi-tenant para oficinas de estética automotiva. Cada te
 - Banco: MySQL em produção/desenvolvimento real; SQLite em memória apenas nos testes.
 - Frontend: Blade, Vite e Tailwind CSS 4.
 - Identidade visual: automotiva premium, preto/amarelo/branco, fonte Orbitron.
+
+## Regras do Projeto
+
+- Antes de implementar, revisar ou alterar qualquer interface, leia os arquivos em `.ai/`, especialmente `.ai/design_system.md` e `.ai/frontend_rules.md`.
+- As regras em `.ai/` complementam este `AGENTS.md` e devem orientar decisões de UX, UI, frontend, componentização, copy visual e padrões de implementação.
+- Se houver conflito entre uma regra genérica e uma diretriz específica em `.ai/`, siga a diretriz mais específica para a área afetada.
 
 ## Comandos Úteis
 
