@@ -14,11 +14,11 @@ use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -67,15 +67,28 @@ class DatabaseSeeder extends Seeder
                 'legal_name' => 'Carbon Studio Detail LTDA',
                 'document' => '12.345.678/0001-90',
                 'whatsapp_phone' => '+55 11 98888-4400',
-                'primary_domain' => 'carbon.boxdetail.test',
+                'primary_domain' => 'carbon.garageon.test',
                 'brand_colors' => ['primary' => '#050505', 'accent' => '#facc15', 'surface' => '#ffffff'],
                 'trial_ends_at' => now()->addDays(14),
             ]);
 
+            $tenant->serviceCategories()->createMany([
+                ['name' => 'Lavagem', 'slug' => 'lavagem'],
+                ['name' => 'Proteção', 'slug' => 'protecao'],
+                ['name' => 'Pintura', 'slug' => 'pintura'],
+            ]);
+
             $owner = User::create([
                 'name' => 'Gestor Carbon',
-                'email' => 'gestor@boxdetail.test',
+                'email' => 'gestor@garageon.test',
                 'password' => Hash::make('password'),
+            ]);
+
+            User::create([
+                'name' => 'Administrador GarageON',
+                'email' => 'admin@garageon.test',
+                'password' => Hash::make('password'),
+                'is_platform_admin' => true,
             ]);
 
             $tenant->users()->attach($owner->id, ['role' => 'owner']);
@@ -88,7 +101,7 @@ class DatabaseSeeder extends Seeder
                 'duration_minutes' => 90,
                 'price' => 149,
                 'lifecycle_days' => 30,
-                'category' => 'lavagem',
+                'category' => 'Lavagem',
             ]);
 
             $vitrificacao = Service::create([
@@ -99,7 +112,7 @@ class DatabaseSeeder extends Seeder
                 'duration_minutes' => 480,
                 'price' => 1890,
                 'lifecycle_days' => 120,
-                'category' => 'proteção',
+                'category' => 'Proteção',
             ]);
 
             $polimento = Service::create([
@@ -110,7 +123,7 @@ class DatabaseSeeder extends Seeder
                 'duration_minutes' => 240,
                 'price' => 690,
                 'lifecycle_days' => 90,
-                'category' => 'pintura',
+                'category' => 'Pintura',
             ]);
 
             $customers = collect([
@@ -224,7 +237,7 @@ class DatabaseSeeder extends Seeder
                 'cta_label' => 'Agendar pelo WhatsApp',
                 'sections' => [
                     ['title' => 'Acabamento de showroom', 'body' => 'Processos padronizados e produtos profissionais.'],
-                    ['title' => 'Manutenção programada', 'body' => 'O BoxDetail chama o cliente de volta na hora certa.'],
+                    ['title' => 'Manutenção programada', 'body' => 'O GarageON chama o cliente de volta na hora certa.'],
                 ],
                 'published_at' => now(),
             ]);

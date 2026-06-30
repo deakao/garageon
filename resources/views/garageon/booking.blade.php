@@ -10,7 +10,7 @@
     <main class="mx-auto grid min-h-screen max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10">
         <section class="flex flex-col justify-between rounded-[2rem] border border-yellow-300/20 bg-[radial-gradient(circle_at_top,rgba(250,204,21,.22),transparent_40%),#111] p-8">
             <div>
-                <a href="{{ route('home') }}" class="font-orbitron text-sm uppercase tracking-[.35em] text-yellow-300">BoxDetail Agenda</a>
+                <a href="{{ route('home') }}" class="font-orbitron text-sm uppercase tracking-[.35em] text-yellow-300">GarageON Agenda</a>
                 <h1 class="mt-8 font-orbitron text-5xl font-black leading-none">{{ $tenant->name }}</h1>
                 <p class="mt-5 text-lg leading-8 text-zinc-300">Escolha um serviço e um horário. O mesmo fluxo pode ser publicado na bio do Instagram ou usado pelo chatbot de WhatsApp.</p>
             </div>

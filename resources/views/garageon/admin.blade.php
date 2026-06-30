@@ -3,18 +3,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Administrador - BoxDetail</title>
+    <title>Administrador - GarageON</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-zinc-950 text-white antialiased">
     <div class="mx-auto max-w-7xl px-6 py-8 lg:px-10">
         <header class="mb-10 flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
             <div>
-                <a href="{{ route('home') }}" class="font-orbitron text-sm uppercase tracking-[.35em] text-yellow-300">BoxDetail Admin</a>
+                <a href="{{ route('home') }}" class="font-orbitron text-sm uppercase tracking-[.35em] text-yellow-300">GarageON Admin</a>
                 <h1 class="mt-4 font-orbitron text-4xl font-black">Gestão de lojas, planos e mensalidades</h1>
                 <p class="mt-3 text-zinc-400">Visão da plataforma para controlar tenants, receita recorrente e oportunidades detectadas pela IA.</p>
             </div>
-            <a href="{{ route('home') }}" class="rounded-full border border-white/15 px-5 py-3 text-sm font-bold hover:border-yellow-300 hover:text-yellow-200">Voltar ao site</a>
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <a href="{{ route('home') }}" class="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-bold hover:border-yellow-300 hover:text-yellow-200">Voltar ao site</a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="w-full rounded-full bg-white px-5 py-3 text-sm font-bold text-black hover:bg-yellow-300 sm:w-auto">Sair</button>
+                </form>
+            </div>
         </header>
 
         <section class="grid gap-4 md:grid-cols-4">

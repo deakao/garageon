@@ -55,6 +55,7 @@ composer run dev
 - Use Blade + Tailwind, sem adicionar framework JS pesado sem necessidade.
 - Preserve a direção visual premium/automotiva.
 - Use `font-orbitron` em marca, títulos e elementos de destaque.
+- Elementos clicáveis como botões, links de ação e controles com `role="button"` devem usar `cursor: pointer`; elementos desabilitados devem indicar `cursor: not-allowed`.
 - Evite layouts genéricos; prefira cards escuros, contrastes fortes, amarelo como acento e linguagem de cockpit/performance.
 
 ## Segurança e Produto

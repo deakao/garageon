@@ -12,7 +12,11 @@
             <div class="absolute inset-0 bg-[linear-gradient(120deg,rgba(250,204,21,.24),transparent_34%),radial-gradient(circle_at_80%_20%,rgba(255,255,255,.13),transparent_30%)]"></div>
             <div class="relative mx-auto max-w-7xl">
                 <nav class="flex items-center justify-between">
-                    <p class="font-orbitron text-xl font-black tracking-[.2em] text-yellow-300">{{ strtoupper($tenant->name) }}</p>
+                    @if ($tenant->logoUrl())
+                        <img src="{{ $tenant->logoUrl() }}" alt="Logo da {{ $tenant->name }}" class="h-12 max-w-60 object-contain">
+                    @else
+                        <p class="font-orbitron text-xl font-black tracking-[.2em] text-yellow-300">{{ strtoupper($tenant->name) }}</p>
+                    @endif
                     <a href="{{ route('booking', $tenant) }}" class="rounded-full bg-yellow-300 px-5 py-3 text-sm font-bold text-black">Agendar</a>
                 </nav>
 

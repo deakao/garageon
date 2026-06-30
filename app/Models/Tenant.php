@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class Tenant extends Model
 {
@@ -21,6 +22,7 @@ class Tenant extends Model
         'document',
         'whatsapp_phone',
         'primary_domain',
+        'logo_path',
         'brand_colors',
         'status',
         'trial_ends_at',
@@ -49,6 +51,11 @@ class Tenant extends Model
         return $this->hasMany(Service::class);
     }
 
+    public function serviceCategories(): HasMany
+    {
+        return $this->hasMany(TenantServiceCategory::class);
+    }
+
     public function customers(): HasMany
     {
         return $this->hasMany(Customer::class);
@@ -57,6 +64,16 @@ class Tenant extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    public function operatingHours(): HasMany
+    {
+        return $this->hasMany(TenantOperatingHour::class);
+    }
+
+    public function holidays(): HasMany
+    {
+        return $this->hasMany(TenantHoliday::class);
     }
 
     public function quotes(): HasMany
@@ -77,5 +94,10 @@ class Tenant extends Model
     public function landingPage(): HasOne
     {
         return $this->hasOne(LandingPage::class);
+    }
+
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
     }
 }

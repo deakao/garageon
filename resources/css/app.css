@@ -14,3 +14,11 @@
 body {
     font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
 }
+
+:where(a[href], button:not(:disabled), [role="button"], input[type='button'], input[type='submit'], input[type='reset'], summary) {
+    cursor: pointer;
+}
+
+:where(button:disabled, input:disabled) {
+    cursor: not-allowed;
+}
