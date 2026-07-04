@@ -115,11 +115,11 @@
                             @error('whatsapp_phone') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
                         </label>
 
-                        <label class="block md:col-span-2">
-                            <span class="text-sm font-bold text-zinc-200">Domínio principal</span>
-                            <input name="primary_domain" value="{{ old('primary_domain', $tenant->primary_domain) }}" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
-                            @error('primary_domain') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
-                        </label>
+                        <div class="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-4 md:col-span-2">
+                            <p class="text-sm font-black text-yellow-200">Domínio próprio da landing</p>
+                            <p class="mt-1 text-sm leading-6 text-zinc-300">Configure em uma tela separada com o passo a passo de CNAME para apontar sua landing para o endereço da loja.</p>
+                            <a href="{{ route('settings.domain') }}" class="mt-3 inline-flex cursor-pointer rounded-xl border border-yellow-300/30 px-4 py-2 text-xs font-black text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">Configurar domínio</a>
+                        </div>
                     </div>
 
                     <div class="flex justify-end border-t border-white/10 pt-5">

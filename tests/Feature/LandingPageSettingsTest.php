@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\LandingPage;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -259,6 +260,61 @@ class LandingPageSettingsTest extends TestCase
             ]);
             $this->assertDatabaseCount('customers', 2);
             $this->assertDatabaseCount('vehicles', 2);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_custom_domain_opens_tenant_landing_page_and_accepts_booking(): void
+    {
+        Carbon::setTestNow('2026-07-06 09:00:00');
+
+        try {
+            [$tenant] = $this->createTenantUser();
+            $tenant->update(['primary_domain' => 'www.carbonstudio.test']);
+            LandingPage::create([
+                'tenant_id' => $tenant->id,
+                'headline' => 'Landing exclusiva Carbon',
+                'subheadline' => 'Agendamento direto pelo domínio da loja.',
+                'cta_label' => 'Agendar agora',
+                'published_at' => now(),
+            ]);
+            $tenant->operatingHours()->create([
+                'day_of_week' => 2,
+                'opens_at' => '10:00',
+                'closes_at' => '12:00',
+                'is_closed' => false,
+            ]);
+            $service = $tenant->services()->create([
+                'name' => 'Lavagem Técnica Premium',
+                'slug' => 'lavagem-tecnica-premium',
+                'description' => 'Pré-lavagem e acabamento premium.',
+                'duration_minutes' => 60,
+                'price' => 149,
+                'category' => 'Serviços automotivos',
+                'is_active' => true,
+            ]);
+
+            $this->get('http://www.carbonstudio.test/')
+                ->assertOk()
+                ->assertSee('Landing exclusiva Carbon')
+                ->assertSee(route('storefront.custom.booking.store'), false);
+
+            $this->post('http://www.carbonstudio.test/agendar', [
+                'service_id' => $service->id,
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '10:00',
+                'customer_name' => 'Rafael Nogueira',
+                'customer_phone' => '+55 11 97777-1001',
+                'customer_email' => 'rafael@example.com',
+            ])->assertRedirect('http://www.carbonstudio.test');
+
+            $this->assertDatabaseHas('appointments', [
+                'tenant_id' => $tenant->id,
+                'customer_id' => $tenant->customers()->firstOrFail()->id,
+                'service_id' => $service->id,
+                'source' => 'landing-page',
+            ]);
         } finally {
             Carbon::setTestNow();
         }

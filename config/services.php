@@ -43,4 +43,8 @@ return [
         'brasildados_url' => env('BRASILDADOS_VEHICLE_PLATE_URL', 'https://brasildados--consulta-veiculo-por-placa.apify.actor/check'),
     ],
 
+    'garageon' => [
+        'cname_target' => env('GARAGEON_CNAME_TARGET'),
+    ],
+
 ];

@@ -129,12 +129,158 @@ $publicBookingSlotIsAvailable = function (Tenant $tenant, Service $service, stri
     return false;
 };
 
-Route::get('/', function () {
+$normalizeCustomDomain = function (?string $domain): ?string {
+    $domain = Str::lower(trim((string) $domain));
+    $domain = preg_replace('#^https?://#', '', $domain) ?? $domain;
+    $domain = Str::before($domain, '/');
+    $domain = Str::before($domain, ':');
+    $domain = trim($domain, '.');
+
+    return $domain !== '' ? $domain : null;
+};
+
+$findTenantByCustomDomain = function (Request $request) use ($normalizeCustomDomain): ?Tenant {
+    $host = $normalizeCustomDomain($request->getHost());
+
+    if (! $host) {
+        return null;
+    }
+
+    $domainCandidates = collect([
+        $host,
+        Str::startsWith($host, 'www.') ? Str::after($host, 'www.') : 'www.'.$host,
+    ])->filter()->unique()->values();
+
+    return Tenant::query()
+        ->whereIn('primary_domain', $domainCandidates)
+        ->first();
+};
+
+$renderStorefront = function (Tenant $tenant, bool $customDomain = false) use ($buildPublicBookingAvailability) {
+    return view('garageon.storefront', [
+        'tenant' => $tenant->load(['landingPage', 'services', 'serviceCategories']),
+        'bookingAvailability' => $buildPublicBookingAvailability($tenant),
+        'customDomain' => $customDomain,
+    ]);
+};
+
+$storePublicBooking = function (Request $request, Tenant $tenant, string $redirectUrl) use ($publicBookingSlotIsAvailable) {
+    $validated = $request->validateWithBag('booking', [
+        'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
+        'scheduled_date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:'.now()->addDays(30)->toDateString()],
+        'scheduled_time' => ['required', 'date_format:H:i'],
+        'customer_name' => ['required', 'string', 'max:255'],
+        'customer_phone' => ['required', 'string', 'max:30'],
+        'customer_email' => ['required', 'email', 'max:255'],
+        'vehicle_plate' => ['nullable', 'string', 'max:10'],
+        'vehicle_brand' => ['nullable', 'string', 'max:80'],
+        'vehicle_model' => ['nullable', 'string', 'max:120'],
+        'notes' => ['nullable', 'string', 'max:1000'],
+    ]);
+
+    $service = Service::query()
+        ->where('tenant_id', $tenant->id)
+        ->where('is_active', true)
+        ->findOrFail($validated['service_id']);
+
+    if (! $publicBookingSlotIsAvailable($tenant, $service, $validated['scheduled_date'], $validated['scheduled_time'])) {
+        return back()
+            ->withErrors(['scheduled_time' => 'Esse horário acabou de ficar indisponível. Escolha outro horário.'], 'booking')
+            ->withInput();
+    }
+
+    $vehicle = null;
+    $vehiclePlate = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $validated['vehicle_plate'] ?? '') ?? '');
+
+    $identifiedVehicle = $vehiclePlate !== ''
+        ? Vehicle::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('plate', $vehiclePlate)
+            ->with('customer')
+            ->get()
+            ->first(fn (Vehicle $vehicle) => Str::lower((string) $vehicle->customer?->email) === Str::lower($validated['customer_email']))
+        : null;
+
+    $customer = $identifiedVehicle?->customer;
+
+    if (! $customer && $vehiclePlate === '') {
+        $customer = Customer::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('phone', $validated['customer_phone'])
+            ->first();
+    }
+
+    if ($customer) {
+        $customer->update([
+            'name' => $validated['customer_name'],
+            'email' => $validated['customer_email'],
+        ]);
+    } else {
+        $customer = Customer::create([
+            'tenant_id' => $tenant->id,
+            'name' => $validated['customer_name'],
+            'phone' => $validated['customer_phone'],
+            'email' => $validated['customer_email'],
+            'tags' => ['landing-page'],
+        ]);
+    }
+
+    if ($vehiclePlate !== '' && filled($validated['vehicle_brand'] ?? null) && filled($validated['vehicle_model'] ?? null)) {
+        if ($identifiedVehicle) {
+            $identifiedVehicle->update([
+                'customer_id' => $customer->id,
+                'brand' => $validated['vehicle_brand'],
+                'model' => $validated['vehicle_model'],
+            ]);
+
+            $vehicle = $identifiedVehicle;
+        } else {
+            $vehicle = Vehicle::create([
+                'tenant_id' => $tenant->id,
+                'plate' => $vehiclePlate,
+                'customer_id' => $customer->id,
+                'brand' => $validated['vehicle_brand'],
+                'model' => $validated['vehicle_model'],
+            ]);
+        }
+    }
+
+    $scheduledAt = Carbon::parse($validated['scheduled_date'].' '.$validated['scheduled_time']);
+
+    Appointment::create([
+        'tenant_id' => $tenant->id,
+        'customer_id' => $customer->id,
+        'service_id' => $service->id,
+        'vehicle_id' => $vehicle?->id,
+        'source' => 'landing-page',
+        'status' => 'scheduled',
+        'scheduled_at' => $scheduledAt,
+        'ends_at' => $scheduledAt->copy()->addMinutes($service->duration_minutes),
+        'notes' => $validated['notes'] ?? null,
+    ]);
+
+    return redirect($redirectUrl)
+        ->with('booking_status', 'Seu horário foi reservado. A loja vai confirmar os detalhes com você.');
+};
+
+Route::get('/', function (Request $request) use ($findTenantByCustomDomain, $renderStorefront) {
+    if ($tenant = $findTenantByCustomDomain($request)) {
+        return $renderStorefront($tenant, true);
+    }
+
     return view('garageon.home', [
         'tenant' => Tenant::with(['landingPage', 'services'])->first(),
         'plans' => Plan::where('active', true)->orderBy('monthly_price')->get(),
     ]);
 })->name('home');
+
+Route::post('/agendar', function (Request $request) use ($findTenantByCustomDomain, $storePublicBooking) {
+    $tenant = $findTenantByCustomDomain($request);
+
+    abort_unless($tenant, 404);
+
+    return $storePublicBooking($request, $tenant, url('/'));
+})->name('storefront.custom.booking.store');
 
 Route::get('/cadastro', [SignupRequestController::class, 'create'])->name('signup.create');
 Route::post('/cadastro', [SignupRequestController::class, 'store'])->name('signup.store');
@@ -950,7 +1096,7 @@ Route::get('/orcamento/{token}', function (string $token) {
     ]);
 })->name('quotes.public');
 
-Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(function () {
+Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(function () use ($normalizeCustomDomain) {
     Route::get('/empresa', function () {
         $tenant = auth()->user()->tenants()
             ->with('plan')
@@ -1045,6 +1191,60 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
 
         return back()->with('status', 'Landing page atualizada e pronta para vender.');
     })->name('landing.update');
+
+    Route::get('/dominio', function (Request $request) use ($normalizeCustomDomain) {
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        $platformHost = $normalizeCustomDomain(config('services.garageon.cname_target') ?: parse_url(config('app.url'), PHP_URL_HOST) ?: $request->getHost());
+
+        return view('garageon.settings.domain', [
+            'tenant' => $tenant,
+            'platformHost' => $platformHost,
+            'customDomainUrl' => $tenant->primary_domain ? 'https://'.$tenant->primary_domain : null,
+        ]);
+    })->name('domain');
+
+    Route::put('/dominio', function (Request $request) use ($normalizeCustomDomain) {
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        $domain = $normalizeCustomDomain($request->input('primary_domain'));
+        $platformHost = $normalizeCustomDomain(config('services.garageon.cname_target') ?: parse_url(config('app.url'), PHP_URL_HOST) ?: $request->getHost());
+
+        $request->merge(['primary_domain' => $domain]);
+
+        $validated = $request->validate([
+            'primary_domain' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,}$/',
+                Rule::notIn(array_filter([$platformHost, $platformHost ? 'www.'.$platformHost : null, 'localhost'])),
+            ],
+        ], [
+            'primary_domain.regex' => 'Informe um domínio válido, como www.sualoja.com.br.',
+            'primary_domain.not_in' => 'Use um domínio próprio da loja, não o domínio da plataforma.',
+        ]);
+
+        if ($domain) {
+            $domainCandidates = collect([
+                $domain,
+                Str::startsWith($domain, 'www.') ? Str::after($domain, 'www.') : 'www.'.$domain,
+            ])->filter()->unique()->values();
+
+            $alreadyUsed = Tenant::query()
+                ->where('id', '!=', $tenant->id)
+                ->whereIn('primary_domain', $domainCandidates)
+                ->exists();
+
+            if ($alreadyUsed) {
+                return back()
+                    ->withErrors(['primary_domain' => 'Esse domínio já está conectado a outra loja.'])
+                    ->withInput();
+            }
+        }
+
+        $tenant->update(['primary_domain' => $validated['primary_domain'] ?? null]);
+
+        return back()->with('status', $domain ? 'Domínio salvo. Assim que o CNAME propagar, ele abrirá a landing da loja.' : 'Domínio removido. A landing continua disponível pelo link padrão.');
+    })->name('domain.update');
 
     Route::get('/servicos', function () {
         $tenant = auth()->user()->tenants()->firstOrFail();
@@ -1279,109 +1479,10 @@ Route::get('/agendar/{tenant:slug}', function (Tenant $tenant) {
     ]);
 })->name('booking');
 
-Route::post('/loja/{tenant:slug}/agendar', function (Request $request, Tenant $tenant) use ($publicBookingSlotIsAvailable) {
-    $validated = $request->validateWithBag('booking', [
-        'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
-        'scheduled_date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:'.now()->addDays(30)->toDateString()],
-        'scheduled_time' => ['required', 'date_format:H:i'],
-        'customer_name' => ['required', 'string', 'max:255'],
-        'customer_phone' => ['required', 'string', 'max:30'],
-        'customer_email' => ['required', 'email', 'max:255'],
-        'vehicle_plate' => ['nullable', 'string', 'max:10'],
-        'vehicle_brand' => ['nullable', 'string', 'max:80'],
-        'vehicle_model' => ['nullable', 'string', 'max:120'],
-        'notes' => ['nullable', 'string', 'max:1000'],
-    ]);
-
-    $service = Service::query()
-        ->where('tenant_id', $tenant->id)
-        ->where('is_active', true)
-        ->findOrFail($validated['service_id']);
-
-    if (! $publicBookingSlotIsAvailable($tenant, $service, $validated['scheduled_date'], $validated['scheduled_time'])) {
-        return back()
-            ->withErrors(['scheduled_time' => 'Esse horário acabou de ficar indisponível. Escolha outro horário.'], 'booking')
-            ->withInput();
-    }
-
-    $vehicle = null;
-    $vehiclePlate = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $validated['vehicle_plate'] ?? '') ?? '');
-
-    $identifiedVehicle = $vehiclePlate !== ''
-        ? Vehicle::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('plate', $vehiclePlate)
-            ->with('customer')
-            ->get()
-            ->first(fn (Vehicle $vehicle) => Str::lower((string) $vehicle->customer?->email) === Str::lower($validated['customer_email']))
-        : null;
-
-    $customer = $identifiedVehicle?->customer;
-
-    if (! $customer && $vehiclePlate === '') {
-        $customer = Customer::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('phone', $validated['customer_phone'])
-            ->first();
-    }
-
-    if ($customer) {
-        $customer->update([
-            'name' => $validated['customer_name'],
-            'email' => $validated['customer_email'],
-        ]);
-    } else {
-        $customer = Customer::create([
-            'tenant_id' => $tenant->id,
-            'name' => $validated['customer_name'],
-            'phone' => $validated['customer_phone'],
-            'email' => $validated['customer_email'],
-            'tags' => ['landing-page'],
-        ]);
-    }
-
-    if ($vehiclePlate !== '' && filled($validated['vehicle_brand'] ?? null) && filled($validated['vehicle_model'] ?? null)) {
-        if ($identifiedVehicle) {
-            $identifiedVehicle->update([
-                'customer_id' => $customer->id,
-                'brand' => $validated['vehicle_brand'],
-                'model' => $validated['vehicle_model'],
-            ]);
-
-            $vehicle = $identifiedVehicle;
-        } else {
-            $vehicle = Vehicle::create([
-                'tenant_id' => $tenant->id,
-                'plate' => $vehiclePlate,
-                'customer_id' => $customer->id,
-                'brand' => $validated['vehicle_brand'],
-                'model' => $validated['vehicle_model'],
-            ]);
-        }
-    }
-
-    $scheduledAt = Carbon::parse($validated['scheduled_date'].' '.$validated['scheduled_time']);
-
-    Appointment::create([
-        'tenant_id' => $tenant->id,
-        'customer_id' => $customer->id,
-        'service_id' => $service->id,
-        'vehicle_id' => $vehicle?->id,
-        'source' => 'landing-page',
-        'status' => 'scheduled',
-        'scheduled_at' => $scheduledAt,
-        'ends_at' => $scheduledAt->copy()->addMinutes($service->duration_minutes),
-        'notes' => $validated['notes'] ?? null,
-    ]);
-
-    return redirect()
-        ->route('storefront', $tenant)
-        ->with('booking_status', 'Seu horário foi reservado. A loja vai confirmar os detalhes com você.');
+Route::post('/loja/{tenant:slug}/agendar', function (Request $request, Tenant $tenant) use ($storePublicBooking) {
+    return $storePublicBooking($request, $tenant, route('storefront', $tenant));
 })->name('storefront.booking.store');
 
-Route::get('/loja/{tenant:slug}', function (Tenant $tenant) use ($buildPublicBookingAvailability) {
-    return view('garageon.storefront', [
-        'tenant' => $tenant->load(['landingPage', 'services', 'serviceCategories']),
-        'bookingAvailability' => $buildPublicBookingAvailability($tenant),
-    ]);
+Route::get('/loja/{tenant:slug}', function (Tenant $tenant) use ($renderStorefront) {
+    return $renderStorefront($tenant);
 })->name('storefront');

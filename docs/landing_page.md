@@ -21,6 +21,8 @@ Ela deve permitir que cada tenant publique uma vitrine com:
 - Atualizacao interna: `PUT /configuracoes/landing-page`
 - Landing publica: `GET /loja/{tenant:slug}`
 - Agendamento publico pela landing: `POST /loja/{tenant:slug}/agendar`
+- Landing por dominio proprio: `GET /` quando o host corresponde a `tenants.primary_domain`
+- Agendamento por dominio proprio: `POST /agendar` quando o host corresponde a `tenants.primary_domain`
 
 Nomes de rota principais:
 
@@ -28,6 +30,7 @@ Nomes de rota principais:
 - `settings.landing.update`
 - `storefront`
 - `storefront.booking.store`
+- `storefront.custom.booking.store`
 
 ## Arquivos Principais
 
@@ -199,6 +202,52 @@ Importante:
 - nao inserir credenciais hardcoded;
 - scripts devem ser usados apenas no contexto publico da loja.
 
+## Dominio Proprio
+
+Cada loja pode configurar um dominio proprio para abrir a landing diretamente.
+
+Tela interna:
+
+- `GET /configuracoes/dominio`
+- `PUT /configuracoes/dominio`
+
+Nome de rota:
+
+- `settings.domain`
+- `settings.domain.update`
+
+Campo usado:
+
+- `tenants.primary_domain`
+
+Regras atuais:
+
+- o dominio e normalizado antes de salvar;
+- `https://`, caminhos e portas sao removidos;
+- o destino do CNAME vem de `GARAGEON_CNAME_TARGET` quando configurado;
+- se `GARAGEON_CNAME_TARGET` estiver vazio, o destino usa o host de `APP_URL`;
+- o dominio deve ter formato valido, como `www.sualoja.com.br`;
+- o dominio da plataforma nao pode ser usado como dominio proprio;
+- o mesmo dominio, com ou sem `www`, nao pode ser usado por outra loja;
+- quando o host da requisicao bate com `primary_domain`, `GET /` renderiza a landing da loja;
+- quando o host da requisicao bate com `primary_domain`, `POST /agendar` usa o mesmo fluxo de agendamento publico da landing por slug.
+
+Passo a passo mostrado para o cliente:
+
+1. entrar no painel DNS do provedor do dominio;
+2. criar um registro `CNAME`;
+3. preencher `Nome` com `www` ou o subdominio escolhido;
+4. preencher `Destino` com o host da plataforma em `APP_URL`;
+5. aguardar a propagacao;
+6. testar o dominio no navegador.
+
+Observacao operacional:
+
+- para dominio raiz sem `www`, alguns provedores nao aceitam CNAME diretamente;
+- nesses casos, orientar o cliente a usar `www` e configurar redirecionamento do dominio raiz para `www` no provedor.
+- em desenvolvimento local, use `APP_URL=http://localhost:8001`; esse host serve para teste local, nao como destino real de CNAME.
+- para emitir SSL do dominio, siga `docs/docker_ssl.md` e use `scripts/issue-domain-cert.sh` depois que o CNAME estiver propagado.
+
 ## Multi-Tenant
 
 Todas as consultas da landing publica devem ser derivadas do tenant resolvido por slug.
@@ -207,6 +256,7 @@ Regras obrigatorias:
 
 - carregar somente `landingPage`, `services` e `serviceCategories` do tenant atual;
 - salvar agendamentos com `tenant_id` do tenant da URL;
+- ao usar dominio proprio, resolver tenant pelo `primary_domain` do host;
 - validar `service_id` usando `Rule::exists(...)->where('tenant_id', $tenant->id)`;
 - nunca buscar servicos ou agendamentos sem filtro por tenant.
 

@@ -43,6 +43,64 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Logo da Carbon Studio Detail');
     }
 
+    public function test_tenant_user_can_configure_custom_landing_domain(): void
+    {
+        $originalAppUrl = config('app.url');
+        $originalCnameTarget = config('services.garageon.cname_target');
+        config([
+            'app.url' => 'http://localhost:8001',
+            'services.garageon.cname_target' => 'www.garageon.con.br',
+        ]);
+
+        try {
+            [$tenant, $user] = $this->createTenantUser();
+
+            $this->actingAs($user)
+                ->get(route('settings.domain'))
+                ->assertOk()
+                ->assertSee('Passo a passo CNAME')
+                ->assertSee('www.garageon.con.br')
+                ->assertSee('www.sualoja.com.br');
+
+            $this->actingAs($user)
+                ->put(route('settings.domain.update'), [
+                    'primary_domain' => 'https://www.carbonstudio.com.br/agenda',
+                ])->assertRedirect();
+
+            $this->assertSame('www.carbonstudio.com.br', $tenant->fresh()->primary_domain);
+
+            $this->actingAs($user)
+                ->put(route('settings.domain.update'), [
+                    'primary_domain' => '',
+                ])->assertRedirect();
+
+            $this->assertNull($tenant->fresh()->primary_domain);
+        } finally {
+            config([
+                'app.url' => $originalAppUrl,
+                'services.garageon.cname_target' => $originalCnameTarget,
+            ]);
+        }
+    }
+
+    public function test_custom_domain_must_be_unique_between_tenants(): void
+    {
+        [$tenant, $user] = $this->createTenantUser();
+
+        Tenant::create([
+            'name' => 'Outra loja',
+            'slug' => 'outra-loja',
+            'primary_domain' => 'carbonstudio.com.br',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('settings.domain.update'), [
+                'primary_domain' => 'www.carbonstudio.com.br',
+            ])->assertSessionHasErrors('primary_domain');
+
+        $this->assertNull($tenant->fresh()->primary_domain);
+    }
+
     /**
      * @return array{Tenant, User}
      */

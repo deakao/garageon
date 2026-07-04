@@ -12,6 +12,7 @@
         ['label' => 'Serviços', 'route' => 'settings.services', 'component' => 'tabler-list-check'],
         ['label' => 'Horários', 'route' => 'settings.hours', 'component' => 'tabler-clock'],
         ['label' => 'Landing page', 'route' => 'settings.landing', 'component' => 'tabler-world-www'],
+        ['label' => 'Domínio', 'route' => 'settings.domain', 'component' => 'tabler-world-www'],
         ['label' => 'Feriados', 'route' => 'settings.holidays', 'component' => 'tabler-calendar-off'],
     ];
 

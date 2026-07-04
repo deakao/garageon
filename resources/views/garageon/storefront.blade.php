@@ -39,6 +39,8 @@
         })->filter(fn (array $section) => $section['services']->isNotEmpty())->values();
         $servicesAnchor = $serviceSections->first()['id'] ?? 'servicos';
         $firstBookableServiceId = array_key_first($bookingAvailability['services'] ?? []);
+        $publicUrl = ($customDomain ?? false) ? url('/') : route('storefront', $tenant);
+        $bookingFormAction = ($customDomain ?? false) ? route('storefront.custom.booking.store') : route('storefront.booking.store', $tenant);
     @endphp
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -52,7 +54,7 @@
     @endif
     <meta property="og:title" content="{{ $seoTitle }}">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ route('storefront', $tenant) }}">
+    <meta property="og:url" content="{{ $publicUrl }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     {!! $landingPage?->analytics_head !!}
 </head>
@@ -187,7 +189,7 @@
 
     @if (! empty($bookingAvailability['services']))
         <dialog id="booking-modal" data-booking-modal data-open-on-error="{{ $errors->booking->any() ? '1' : '0' }}" data-old-service="{{ old('service_id', $firstBookableServiceId) }}" data-old-date="{{ old('scheduled_date') }}" data-old-time="{{ old('scheduled_time') }}" class="fixed inset-0 m-auto h-fit max-h-[92vh] w-[min(96vw,1120px)] overflow-hidden rounded-[28px] border border-[#ffcc00]/25 bg-white p-0 text-[#0b2b4c] shadow-2xl shadow-black/80 backdrop:bg-black/80 backdrop:backdrop-blur-sm">
-            <form method="POST" action="{{ route('storefront.booking.store', $tenant) }}" data-booking-form class="relative">
+            <form method="POST" action="{{ $bookingFormAction }}" data-booking-form class="relative">
                 @csrf
                 <input type="hidden" name="service_id" value="{{ old('service_id', $firstBookableServiceId) }}" data-booking-service-input>
                 <input type="hidden" name="scheduled_date" value="{{ old('scheduled_date') }}" data-booking-date-input>
