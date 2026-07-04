@@ -2,7 +2,7 @@
     $quickActions ??= [
         ['label' => 'Dashboard', 'component' => 'tabler-layout-dashboard', 'href' => route('dashboard'), 'primary' => false],
         ['label' => 'Nova Venda', 'component' => 'tabler-plus', 'overlay' => 'sale-modal', 'primary' => true],
-        ['label' => 'Novo Agendamento', 'component' => 'tabler-calendar-plus', 'href' => route('booking', $tenant), 'primary' => false],
+        
         ['label' => 'Orçamentos', 'component' => 'tabler-file-invoice', 'href' => route('quotes.index'), 'primary' => false],
         ['label' => 'Clientes', 'component' => 'tabler-users', 'href' => route('customers.index'), 'primary' => false],
     ];

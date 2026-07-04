@@ -94,7 +94,7 @@
                                     <td>
                                         <div>
                                             <strong class="block text-sm font-black text-white">{{ $customer->name }}</strong>
-                                            <span class="mt-1 block text-xs text-zinc-500">Cliente #{{ $customer->id }}</span>
+       
                                             @if ($customer->vehicles->isNotEmpty())
                                                 <span class="sr-only">Veículos: {{ $customer->vehicles->map(fn ($vehicle) => trim($vehicle->plate.' '.$vehicle->brand.' '.$vehicle->model))->join(', ') }}</span>
                                             @endif
