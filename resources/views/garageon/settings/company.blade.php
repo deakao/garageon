@@ -3,24 +3,73 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Configurações da empresa - {{ $tenant->name }}</title>
+    <title>Empresa - {{ $tenant->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-[#070707] text-white antialiased">
     <main class="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),radial-gradient(circle_at_100%_10%,rgba(255,255,255,.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
+        <div class="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.9)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:42px_42px]"></div>
 
-        <div class="relative mx-auto max-w-5xl">
-            @include('garageon.settings.nav')
+        <div class="relative mx-auto max-w-7xl">
+            @include('garageon.dashboard.header')
 
-            <section class="mt-6 rounded-[28px] border border-white/10 bg-white/[.05] p-6 shadow-2xl shadow-black/30">
-                <div class="border-b border-white/10 pb-5">
-                    <p class="font-orbitron text-xs font-black uppercase tracking-[.28em] text-yellow-300">Dados da empresa</p>
-                    <h2 class="mt-2 text-2xl font-black">Identidade operacional</h2>
-                    <p class="mt-2 text-sm text-zinc-400">Essas informações aparecem no cockpit, agenda pública e comunicações com clientes.</p>
+            @if (session('status'))
+                <p class="mt-5 rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-5 py-4 text-sm font-bold text-yellow-100">{{ session('status') }}</p>
+            @endif
+
+            @if ($errors->any())
+                <div class="mt-5 rounded-2xl border border-red-300/25 bg-red-300/10 px-5 py-4 text-sm text-red-100">
+                    @foreach ($errors->all() as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
+
+            <section class="mt-6 overflow-hidden rounded-[32px] border border-white/10 bg-[#101010]/95 shadow-2xl shadow-black/30 backdrop-blur">
+                <div class="grid divide-y divide-white/10 lg:grid-cols-3 lg:divide-x lg:divide-y-0 lg:divide-white/10">
+                    <article class="flex items-center gap-5 p-6 sm:p-8">
+                        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-yellow-300/15 text-yellow-300 shadow-lg shadow-yellow-300/10">
+                            <x-tabler-building-store class="h-10 w-10" stroke-width="2.2" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-black text-zinc-500">Plano atual</p>
+                            <strong class="mt-1 block font-orbitron text-2xl font-black text-white">{{ $tenant->plan?->name ?? 'Operacional' }}</strong>
+                            <span class="mt-2 inline-flex items-center gap-1 text-xs font-black text-yellow-300">{{ $tenant->slug }}</span>
+                        </div>
+                    </article>
+
+                    <article class="flex items-center gap-5 p-6 sm:p-8">
+                        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-yellow-300/15 text-yellow-300 shadow-lg shadow-yellow-300/10">
+                            <x-tabler-users-group class="h-10 w-10" stroke-width="2.2" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-black text-zinc-500">Equipe</p>
+                            <strong class="mt-1 block font-orbitron text-3xl font-black text-white">{{ number_format($companyStats['team'], 0, ',', '.') }}</strong>
+                            <span class="mt-2 inline-flex items-center gap-1 text-xs font-black text-zinc-400">{{ $companyStats['team'] === 1 ? 'membro ativo' : 'membros ativos' }}</span>
+                        </div>
+                    </article>
+
+                    <article class="flex items-center gap-5 p-6 sm:p-8">
+                        <div class="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-yellow-300/15 text-yellow-300 shadow-lg shadow-yellow-300/10">
+                            <x-tabler-users class="h-10 w-10" stroke-width="2.2" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-black text-zinc-500">Clientes na base</p>
+                            <strong class="mt-1 block font-orbitron text-3xl font-black text-white">{{ number_format($companyStats['customers'], 0, ',', '.') }}</strong>
+                            <span class="mt-2 inline-flex items-center gap-1 text-xs font-black text-yellow-300">{{ number_format($companyStats['services'], 0, ',', '.') }} serviços cadastrados</span>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="mt-8 rounded-[32px] border border-white/10 bg-[#101010]/95 p-5 shadow-2xl shadow-black/30 sm:p-8">
+                <div class="mb-6 border-b border-white/10 pb-5">
+                    <h1 class="font-orbitron text-2xl font-black text-white">Empresa</h1>
+                    <p class="mt-1 text-sm text-zinc-400">Essas informações aparecem no cockpit, agenda pública e comunicações com clientes.</p>
                 </div>
 
-                <form method="POST" action="{{ route('settings.company.update') }}" enctype="multipart/form-data" class="mt-6 grid gap-5">
+                <form method="POST" action="{{ route('settings.company.update') }}" enctype="multipart/form-data" class="grid gap-5">
                     @csrf
                     @method('PUT')
 

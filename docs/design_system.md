@@ -51,6 +51,7 @@ O amarelo é acento de performance, não cor de preenchimento em massa. Use para
 - Comece páginas com contexto humano + síntese executiva.
 - Depois mostre KPIs, alertas, oportunidades e ações recomendadas.
 - Tabelas, filtros e configurações vêm depois do panorama.
+- Toda página do painel autenticado deve exibir o header padrão do cockpit no topo, preservando navegação, contexto da loja e ações principais.
 - Use grid responsivo com cards escuros, espaçamento generoso e densidade controlada.
 - Evite layouts planos: use camadas sutis, gradientes escuros, brilho amarelo discreto, bordas finas e sensação de cockpit.
 - Não crie muitas cores competindo. O sistema é preto, branco, cinza e amarelo.

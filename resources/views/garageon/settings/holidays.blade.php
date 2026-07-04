@@ -8,12 +8,25 @@
 </head>
 <body class="min-h-screen bg-[#070707] text-white antialiased">
     <main class="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),radial-gradient(circle_at_100%_10%,rgba(255,255,255,.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
+        <div class="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.9)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:42px_42px]"></div>
 
-        <div class="relative mx-auto max-w-5xl">
-            @include('garageon.settings.nav')
+        <div class="relative mx-auto max-w-7xl">
+            @include('garageon.dashboard.header')
 
-            <section class="mt-6 grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
+            @if (session('status'))
+                <p class="mt-5 rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-5 py-4 text-sm font-bold text-yellow-100">{{ session('status') }}</p>
+            @endif
+
+            @if ($errors->any())
+                <div class="mt-5 rounded-2xl border border-red-300/25 bg-red-300/10 px-5 py-4 text-sm text-red-100">
+                    @foreach ($errors->all() as $message)
+                        <p>{{ $message }}</p>
+                    @endforeach
+                </div>
+            @endif
+
+            <section class="mt-8 grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
                 <article class="rounded-[28px] border border-yellow-300/20 bg-[#101010] p-6 shadow-2xl shadow-black/30">
                     <p class="font-orbitron text-xs font-black uppercase tracking-[.28em] text-yellow-300">Bloqueio de agenda</p>
                     <h2 class="mt-2 text-2xl font-black">Novo feriado</h2>

@@ -26,4 +26,9 @@ class QuoteItem extends Model
     {
         return $this->belongsTo(Quote::class);
     }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
 }

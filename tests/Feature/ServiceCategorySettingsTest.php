@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Models\TenantServiceCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ServiceCategorySettingsTest extends TestCase
@@ -34,6 +36,8 @@ class ServiceCategorySettingsTest extends TestCase
 
     public function test_services_use_registered_categories_and_follow_category_renames(): void
     {
+        Storage::fake('public');
+
         [$tenant, $user] = $this->createTenantUser();
 
         $category = TenantServiceCategory::create([
@@ -46,6 +50,7 @@ class ServiceCategorySettingsTest extends TestCase
             ->post(route('settings.services.store'), [
                 'name' => 'Lavagem Premium',
                 'description' => 'Processo técnico completo.',
+                'thumbnail' => UploadedFile::fake()->image('lavagem.jpg', 900, 600),
                 'duration_minutes' => 90,
                 'price' => 149,
                 'lifecycle_days' => 30,
@@ -58,6 +63,12 @@ class ServiceCategorySettingsTest extends TestCase
             'name' => 'Lavagem Premium',
             'category' => 'Lavagem',
         ]);
+
+        $service = $tenant->services()->where('name', 'Lavagem Premium')->firstOrFail();
+        $originalThumbnailPath = $service->thumbnail_path;
+
+        $this->assertNotNull($originalThumbnailPath);
+        Storage::disk('public')->assertExists($originalThumbnailPath);
 
         $this->put(route('settings.service-categories.update', $category), [
             'name' => 'Lavagem Técnica',
@@ -73,6 +84,27 @@ class ServiceCategorySettingsTest extends TestCase
             'name' => 'Lavagem Premium',
             'category' => 'Lavagem Técnica',
         ]);
+
+        $this->put(route('settings.services.update', $service), [
+            'name' => 'Lavagem Premium Black',
+            'description' => 'Processo técnico completo com acabamento premium.',
+            'thumbnail' => UploadedFile::fake()->image('lavagem-black.png', 900, 600),
+            'duration_minutes' => 120,
+            'price' => 199,
+            'lifecycle_days' => 45,
+            'category' => 'Lavagem Técnica',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $service->refresh();
+
+        Storage::disk('public')->assertMissing($originalThumbnailPath);
+        Storage::disk('public')->assertExists($service->thumbnail_path);
+
+        $this->get(route('storefront', $tenant))
+            ->assertOk()
+            ->assertSee('Lavagem Premium Black')
+            ->assertSee($service->thumbnailUrl());
     }
 
     public function test_category_with_services_cannot_be_deleted(): void

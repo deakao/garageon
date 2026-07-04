@@ -9,11 +9,20 @@ class LandingPage extends Model
 {
     protected $fillable = [
         'tenant_id',
+        'eyebrow',
         'headline',
         'subheadline',
         'hero_image',
+        'hero_badge_title',
+        'hero_badge_body',
         'cta_label',
         'sections',
+        'seo_title',
+        'seo_description',
+        'seo_keywords',
+        'analytics_head',
+        'conversion_pixel',
+        'custom_javascript',
         'published_at',
     ];
 

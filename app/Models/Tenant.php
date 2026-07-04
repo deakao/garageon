@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 
 class Tenant extends Model
 {
@@ -61,6 +60,11 @@ class Tenant extends Model
         return $this->hasMany(Customer::class);
     }
 
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(Vehicle::class);
+    }
+
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
@@ -98,6 +102,6 @@ class Tenant extends Model
 
     public function logoUrl(): ?string
     {
-        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+        return $this->logo_path ? '/storage/'.ltrim($this->logo_path, '/') : null;
     }
 }

@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Appointment;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class LandingPageSettingsTest extends TestCase
@@ -18,7 +20,8 @@ class LandingPageSettingsTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Editar landing page da loja')
+            ->assertSee('Configurações da loja', false)
+            ->assertSee('Landing page')
             ->assertSee(route('settings.landing'), false);
     }
 
@@ -28,26 +31,237 @@ class LandingPageSettingsTest extends TestCase
 
         $this->actingAs($user)
             ->put(route('settings.landing.update'), [
+                'eyebrow' => 'Estética automotiva premium',
                 'headline' => 'Proteção premium para carros exigentes',
                 'subheadline' => 'Agendamento online para lavagem técnica, vitrificação e manutenção.',
+                'hero_badge_title' => 'CARBON',
+                'hero_badge_body' => 'Proteção, brilho e retorno programado.',
                 'cta_label' => 'Reservar agora',
-                'sections' => [
-                    ['title' => 'Brilho de showroom', 'body' => 'Processos profissionais para entregar acabamento premium.'],
-                    ['title' => 'Retorno programado', 'body' => 'A loja chama o cliente de volta na hora certa.'],
-                ],
+                'seo_title' => 'Estética automotiva premium em São Paulo',
+                'seo_description' => 'Lavagem técnica, vitrificação e proteção premium com agendamento online.',
+                'seo_keywords' => 'estética automotiva, vitrificação, lavagem técnica',
+                'analytics_head' => '<script>window.analyticsLoaded = true;</script>',
+                'conversion_pixel' => '<noscript>pixel ativo</noscript>',
+                'custom_javascript' => '<script>window.landingCustom = true;</script>',
                 'published' => '1',
             ])->assertRedirect();
 
         $this->assertDatabaseHas('landing_pages', [
             'tenant_id' => $tenant->id,
             'headline' => 'Proteção premium para carros exigentes',
+            'seo_title' => 'Estética automotiva premium em São Paulo',
             'cta_label' => 'Reservar agora',
+        ]);
+
+        $tenant->serviceCategories()->createMany([
+            ['name' => 'Pacotes', 'slug' => 'pacotes'],
+            ['name' => 'Serviços automotivos', 'slug' => 'servicos-automotivos'],
+            ['name' => 'Serviços Residenciais', 'slug' => 'servicos-residenciais'],
+        ]);
+
+        $tenant->services()->createMany([
+            [
+                'name' => 'Pacote Ouro',
+                'slug' => 'pacote-ouro',
+                'description' => "Higienização interna\nCorreção de pintura\nProteção de 3 anos",
+                'duration_minutes' => 480,
+                'price' => 1990,
+                'lifecycle_days' => 120,
+                'category' => 'Pacotes',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Lavagem Técnica Premium',
+                'slug' => 'lavagem-tecnica-premium',
+                'description' => 'Pré-lavagem e acabamento premium.',
+                'duration_minutes' => 90,
+                'price' => 149,
+                'lifecycle_days' => 30,
+                'category' => 'Serviços automotivos',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Limpeza e Higienização de Sofá',
+                'slug' => 'limpeza-higienizacao-sofa',
+                'description' => 'Higienização residencial com cuidado técnico.',
+                'duration_minutes' => 180,
+                'price' => 349,
+                'lifecycle_days' => 90,
+                'category' => 'Serviços Residenciais',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Serviço Inativo',
+                'slug' => 'servico-inativo',
+                'description' => 'Não deve aparecer na landing.',
+                'duration_minutes' => 60,
+                'price' => 99,
+                'category' => 'Serviços automotivos',
+                'is_active' => false,
+            ],
         ]);
 
         $this->get(route('storefront', $tenant))
             ->assertOk()
+            ->assertSee('<title>Estética automotiva premium em São Paulo</title>', false)
+            ->assertSee('name="description" content="Lavagem técnica, vitrificação e proteção premium com agendamento online."', false)
+            ->assertSee('window.analyticsLoaded = true', false)
+            ->assertSee('pixel ativo', false)
+            ->assertSee('window.landingCustom = true', false)
             ->assertSee('Proteção premium para carros exigentes')
-            ->assertSee('Reservar agora');
+            ->assertSee('CARBON')
+            ->assertSee('Reservar agora')
+            ->assertSee('PACOTES')
+            ->assertSee('Pacote Ouro')
+            ->assertSee('Serviços automotivos')
+            ->assertSee('Lavagem Técnica Premium')
+            ->assertSee('Serviços Residenciais')
+            ->assertSee('Limpeza e Higienização de Sofá')
+            ->assertDontSee('Serviço Inativo');
+    }
+
+    public function test_storefront_booking_modal_can_create_public_appointment(): void
+    {
+        Carbon::setTestNow('2026-07-06 09:00:00');
+
+        try {
+            [$tenant] = $this->createTenantUser();
+            $tenant->serviceCategories()->create([
+                'name' => 'Serviços automotivos',
+                'slug' => 'servicos-automotivos',
+            ]);
+            $tenant->operatingHours()->create([
+                'day_of_week' => 2,
+                'opens_at' => '10:00',
+                'closes_at' => '12:00',
+                'is_closed' => false,
+            ]);
+            $service = $tenant->services()->create([
+                'name' => 'Lavagem Técnica Premium',
+                'slug' => 'lavagem-tecnica-premium',
+                'description' => 'Pré-lavagem e acabamento premium.',
+                'duration_minutes' => 60,
+                'price' => 149,
+                'lifecycle_days' => 30,
+                'category' => 'Serviços automotivos',
+                'is_active' => true,
+            ]);
+
+            $this->get(route('storefront', $tenant))
+                ->assertOk()
+                ->assertSee('data-booking-modal', false)
+                ->assertSee('data-booking-open="'.$service->id.'"', false)
+                ->assertSee('10h00')
+                ->assertSee('11h00');
+
+            $this->post(route('storefront.booking.store', $tenant), [
+                'service_id' => $service->id,
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '10:00',
+                'customer_name' => 'Rafael Nogueira',
+                'customer_phone' => '+55 11 97777-1001',
+                'customer_email' => 'rafael@example.com',
+                'vehicle_plate' => 'abc-1d23',
+                'vehicle_brand' => 'Toyota',
+                'vehicle_model' => 'Corolla Cross',
+            ])->assertRedirect(route('storefront', $tenant));
+
+            $appointment = Appointment::firstOrFail();
+
+            $this->assertSame('landing-page', $appointment->source);
+            $this->assertSame($service->id, $appointment->service_id);
+            $this->assertSame('rafael@example.com', $appointment->customer->email);
+            $this->assertSame('2026-07-07 10:00:00', $appointment->scheduled_at->format('Y-m-d H:i:s'));
+            $this->assertSame('2026-07-07 11:00:00', $appointment->ends_at->format('Y-m-d H:i:s'));
+
+            $this->post(route('storefront.booking.store', $tenant), [
+                'service_id' => $service->id,
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '10:00',
+                'customer_name' => 'Marina Costa',
+                'customer_phone' => '+55 11 98888-1000',
+                'customer_email' => 'marina@example.com',
+            ])->assertSessionHasErrors('scheduled_time', null, 'booking');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_storefront_booking_identifies_customer_by_plate_and_email(): void
+    {
+        Carbon::setTestNow('2026-07-06 09:00:00');
+
+        try {
+            [$tenant] = $this->createTenantUser();
+            $tenant->operatingHours()->create([
+                'day_of_week' => 2,
+                'opens_at' => '10:00',
+                'closes_at' => '13:00',
+                'is_closed' => false,
+            ]);
+            $service = $tenant->services()->create([
+                'name' => 'Lavagem Técnica Premium',
+                'slug' => 'lavagem-tecnica-premium',
+                'description' => 'Pré-lavagem e acabamento premium.',
+                'duration_minutes' => 60,
+                'price' => 149,
+                'category' => 'Serviços automotivos',
+                'is_active' => true,
+            ]);
+            $identifiedCustomer = $tenant->customers()->create([
+                'name' => 'Rafael Nogueira',
+                'phone' => '+55 11 97777-1001',
+                'email' => 'rafael@example.com',
+            ]);
+            $tenant->vehicles()->create([
+                'customer_id' => $identifiedCustomer->id,
+                'plate' => 'ABC1D23',
+                'brand' => 'Toyota',
+                'model' => 'Corolla Cross',
+            ]);
+
+            $this->post(route('storefront.booking.store', $tenant), [
+                'service_id' => $service->id,
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '10:00',
+                'customer_name' => 'Rafael Atualizado',
+                'customer_phone' => '+55 11 90000-0000',
+                'customer_email' => 'rafael@example.com',
+                'vehicle_plate' => 'abc-1d23',
+                'vehicle_brand' => 'Toyota',
+                'vehicle_model' => 'Corolla Cross',
+            ])->assertRedirect(route('storefront', $tenant));
+
+            $firstAppointment = Appointment::query()->where('scheduled_at', '2026-07-07 10:00:00')->firstOrFail();
+
+            $this->assertSame($identifiedCustomer->id, $firstAppointment->customer_id);
+            $this->assertDatabaseCount('customers', 1);
+
+            $this->post(route('storefront.booking.store', $tenant), [
+                'service_id' => $service->id,
+                'scheduled_date' => '2026-07-07',
+                'scheduled_time' => '11:00',
+                'customer_name' => 'Marina Costa',
+                'customer_phone' => '+55 11 98888-1000',
+                'customer_email' => 'marina@example.com',
+                'vehicle_plate' => 'abc-1d23',
+                'vehicle_brand' => 'Toyota',
+                'vehicle_model' => 'Corolla Cross',
+            ])->assertRedirect(route('storefront', $tenant));
+
+            $secondAppointment = Appointment::query()->where('scheduled_at', '2026-07-07 11:00:00')->firstOrFail();
+
+            $this->assertNotSame($identifiedCustomer->id, $secondAppointment->customer_id);
+            $this->assertDatabaseHas('customers', [
+                'tenant_id' => $tenant->id,
+                'name' => 'Marina Costa',
+                'email' => 'marina@example.com',
+            ]);
+            $this->assertDatabaseCount('customers', 2);
+            $this->assertDatabaseCount('vehicles', 2);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     /**

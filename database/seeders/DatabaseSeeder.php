@@ -14,6 +14,7 @@ use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -135,10 +136,20 @@ class DatabaseSeeder extends Seeder
                 ...$customer,
             ]));
 
+            $vehicles = collect([
+                ['customer_id' => $customers[0]->id, 'plate' => 'RAJ1A64', 'brand' => 'Jeep', 'model' => 'Compass', 'color' => 'Grafite', 'year' => 2022],
+                ['customer_id' => $customers[1]->id, 'plate' => 'MAR2B18', 'brand' => 'BMW', 'model' => '320i', 'color' => 'Preto', 'year' => 2021],
+                ['customer_id' => $customers[2]->id, 'plate' => 'BRU3C09', 'brand' => 'Audi', 'model' => 'Q3', 'color' => 'Branco', 'year' => 2023],
+            ])->map(fn (array $vehicle) => Vehicle::create([
+                'tenant_id' => $tenant->id,
+                ...$vehicle,
+            ]));
+
             Appointment::create([
                 'tenant_id' => $tenant->id,
                 'customer_id' => $customers[1]->id,
                 'service_id' => $lavagem->id,
+                'vehicle_id' => $vehicles[1]->id,
                 'source' => 'chatbot',
                 'status' => 'scheduled',
                 'scheduled_at' => Carbon::tomorrow()->setTime(10, 30),
@@ -150,6 +161,7 @@ class DatabaseSeeder extends Seeder
                 'tenant_id' => $tenant->id,
                 'customer_id' => $customers[0]->id,
                 'service_id' => $vitrificacao->id,
+                'vehicle_id' => $vehicles[0]->id,
                 'source' => 'external_link',
                 'status' => 'scheduled',
                 'scheduled_at' => now()->addDays(3)->setTime(8, 0),
@@ -232,13 +244,15 @@ class DatabaseSeeder extends Seeder
 
             LandingPage::create([
                 'tenant_id' => $tenant->id,
-                'headline' => 'Seu carro tratado como máquina de pista',
-                'subheadline' => 'Lavagem técnica, vitrificação e proteção premium com agendamento online 24/7.',
-                'cta_label' => 'Agendar pelo WhatsApp',
-                'sections' => [
-                    ['title' => 'Acabamento de showroom', 'body' => 'Processos padronizados e produtos profissionais.'],
-                    ['title' => 'Manutenção programada', 'body' => 'O GarageON chama o cliente de volta na hora certa.'],
-                ],
+                'eyebrow' => 'Conheça a sua nova estética automotiva em SP',
+                'headline' => 'Bem vindos à Carbon Studio Detail',
+                'subheadline' => 'Somos apaixonados pelo que fazemos cuidando do seu patrimônio. Cada veículo recebe tratamento individualizado, deixando seu veículo novo de novo.',
+                'hero_image' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1400&q=80',
+                'hero_badge_title' => 'Carbon Studio',
+                'hero_badge_body' => 'Detail premium com padrão de entrega visual.',
+                'cta_label' => 'Orçamento Grátis',
+                'seo_title' => 'Estética automotiva premium com agendamento online',
+                'seo_description' => 'Lavagem técnica, vitrificação e proteção premium para carros exigentes.',
                 'published_at' => now(),
             ]);
         });

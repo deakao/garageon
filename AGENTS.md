@@ -13,9 +13,9 @@ GarageON é um SaaS multi-tenant para oficinas de estética automotiva. Cada ten
 
 ## Regras do Projeto
 
-- Antes de implementar, revisar ou alterar qualquer interface, leia os arquivos em `.ai/`, especialmente `.ai/design_system.md` e `.ai/frontend_rules.md`.
-- As regras em `.ai/` complementam este `AGENTS.md` e devem orientar decisões de UX, UI, frontend, componentização, copy visual e padrões de implementação.
-- Se houver conflito entre uma regra genérica e uma diretriz específica em `.ai/`, siga a diretriz mais específica para a área afetada.
+- Antes de implementar, revisar ou alterar qualquer interface, leia os arquivos em `docs/`, especialmente `docs/design_system.md` e `docs/frontend_rules.md`.
+- As regras em `docs/` complementam este `AGENTS.md` e devem orientar decisões de UX, UI, frontend, componentização, copy visual e padrões de implementação.
+- Se houver conflito entre uma regra genérica e uma diretriz específica em `docs/`, siga a diretriz mais específica para a área afetada.
 
 ## Comandos Úteis
 

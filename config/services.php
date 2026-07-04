@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'vehicle_plate' => [
+        'provider' => env('VEHICLE_PLATE_PROVIDER', 'apiplacas'),
+        'apiplacas_token' => env('APIPLACAS_TOKEN'),
+        'apiplacas_url' => env('APIPLACAS_URL', 'https://wdapi2.com.br/consulta'),
+        'brasildados_token' => env('BRASILDADOS_TOKEN'),
+        'brasildados_url' => env('BRASILDADOS_VEHICLE_PLATE_URL', 'https://brasildados--consulta-veiculo-por-placa.apify.actor/check'),
+    ],
+
 ];

@@ -16,6 +16,7 @@ class Service extends Model
         'name',
         'slug',
         'description',
+        'thumbnail_path',
         'duration_minutes',
         'price',
         'lifecycle_days',
@@ -39,5 +40,10 @@ class Service extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    public function thumbnailUrl(): ?string
+    {
+        return $this->thumbnail_path ? '/storage/'.ltrim($this->thumbnail_path, '/') : null;
     }
 }
