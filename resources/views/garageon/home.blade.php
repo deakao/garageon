@@ -1,6 +1,13 @@
 @php
     $primaryCta = route('signup.create');
-    $storefrontUrl = $tenant ? route('storefront', $tenant) : '#dashboard';
+    $loginUrl = route('login');
+    $storefrontUrl = $tenant ? route('storefront', $tenant) : '#planos';
+
+    $plans = ($plans ?? collect())->sortBy('monthly_price')->values();
+    $trialDays = 14;
+    $priceFmt = fn ($value) => 'R$ ' . number_format((float) $value, 0, ',', '.');
+    $planCta = fn ($slug) => route('signup.create', ['plano' => $slug]);
+    $highlightSlug = 'performance';
 
     $problems = [
         ['Mensagens sem resposta', 'O lead quente chama no WhatsApp, espera alguns minutos e procura quem atende primeiro.'],
@@ -12,13 +19,14 @@
     ];
 
     $solutions = [
-        ['Atendimento automático', 'Responde com contexto, qualifica a necessidade e conduz o cliente para a melhor próxima ação.'],
-        ['Agendamento inteligente', 'Transforma interesse em horário confirmado sem depender da disponibilidade do proprietário.'],
-        ['Recuperação de clientes', 'Identifica quem pode voltar e sugere abordagens antes que a relação esfrie.'],
-        ['Follow-up automático', 'Mantém propostas, retornos e pós-venda vivos no tempo certo.'],
-        ['Inteligência comercial', 'Encontra gargalos, oportunidades e movimentos para vender melhor.'],
-        ['Dashboard em tempo real', 'Mostra o que aconteceu, o que importa agora e onde agir primeiro.'],
-        ['IA trabalhando 24 horas', 'Enquanto a loja fecha, a operação comercial continua acordada.'],
+        ['Atendente virtual 24/7', 'IA responde no WhatsApp com contexto, qualifica a necessidade e conduz o cliente para o agendamento.'],
+        ['Agenda que preenche sozinha', 'Transforma interesse em horário confirmado sem depender da disponibilidade do proprietário.'],
+        ['Recuperação de clientes', 'Identifica quem pode voltar e dispara a abordagem certa antes que a relação esfrie.'],
+        ['Follow-up automático', 'Mantém propostas, retornos e pós-venda vivos no tempo certo, sem esforço manual.'],
+        ['Orçamentos e vendas', 'Envie propostas com link público, feche vendas e acompanhe o faturamento por origem.'],
+        ['Landing page própria', 'Cada loja ganha uma página com domínio próprio para captar e converter leads.'],
+        ['Clube de assinatura', 'Crie recorrência com planos mensais e receita previsível todo mês.'],
+        ['Cockpit em tempo real', 'Um painel mostra o que aconteceu, o que importa agora e onde agir primeiro.'],
     ];
 
     $flow = [
@@ -38,35 +46,34 @@
         'Empresa organizada em um único cockpit',
         'IA trabalhando nos bastidores',
         'Crescimento com rotina comercial clara',
-    ];
-
-    $metrics = [
-        ['36', 'novos agendamentos', 'Últimos 7 dias'],
-        ['18', 'clientes recuperados', 'Oportunidades que voltaram'],
-        ['82%', 'agenda preenchida', 'Capacidade da semana'],
-        ['R$ 24,8k', 'faturamento gerado', 'Origem rastreada'],
-        ['147', 'follow-ups realizados', 'Sem depender da memória'],
-        ['412', 'mensagens respondidas', 'Atendimento sempre ON'],
+        'Receita recorrente com clube de assinatura',
     ];
 
     $modules = [
-        ['GarageON AI', 'Inteligência de atendimento, recomendação e recuperação.'],
-        ['GarageON CRM', 'Clientes, histórico, preferências e oportunidades.'],
-        ['GarageON Agenda', 'Horários, equipe, serviços e confirmações.'],
-        ['GarageON Marketing', 'Campanhas, retornos e relacionamento ativo.'],
-        ['GarageON Finance', 'Receita, recorrência e visão comercial.'],
-        ['GarageON Ads', 'Leads e campanhas conectadas ao funil real.'],
-        ['GarageON Insights', 'Indicadores que mostram onde crescer.'],
-        ['GarageON Voice', 'Experiências de voz para atendimento assistido.'],
-        ['GarageON Connect', 'Integrações para manter tudo no mesmo fluxo.'],
-        ['GarageON Marketplace', 'Soluções e parceiros para expandir a operação.'],
-        ['GarageON Academy', 'Treinamento para transformar sistema em crescimento.'],
+        ['Atendente Virtual', 'IA de atendimento no WhatsApp que qualifica, responde e agenda.'],
+        ['CRM Automotivo', 'Clientes, veículos, histórico, preferências e oportunidades.'],
+        ['Agenda Inteligente', 'Horários, equipe, serviços, confirmações e disponibilidade.'],
+        ['Orçamentos & Vendas', 'Propostas com link público, fechamento e faturamento rastreado.'],
+        ['Clube de Assinatura', 'Recorrência mensal para gerar receita previsível.'],
+        ['Landing Pages', 'Página de captação com domínio próprio para cada loja.'],
+        ['Vendedor Digital', 'Alertas de orçamentos parados e clientes inativos para agir na hora.'],
+        ['Pós-venda Automático', 'Automações de retorno no ciclo certo de cada serviço.'],
+        ['Fidelidade', 'Programa de pontos para transformar clientes em recorrentes.'],
     ];
 
     $testimonials = [
         ['Marcos T.', 'Detailer e proprietário', 'Antes eu respondia cliente de noite e ainda assim perdia orçamento. Hoje acordo com pedidos organizados e follow-ups prontos para minha equipe assumir.'],
         ['Renata C.', 'Centro automotivo premium', 'A GarageON trouxe clareza. Não virou mais um sistema para alimentar; virou uma rotina comercial que mostra onde estamos deixando dinheiro na mesa.'],
         ['Igor M.', 'Especialista em vitrificação', 'O que mais mudou foi a velocidade. O cliente chama, recebe atenção e chega muito mais preparado para agendar.'],
+    ];
+
+    $faqs = [
+        ['Preciso falar com um vendedor para começar?', 'Não. Você cria sua conta agora mesmo, cai direto no painel e já começa a usar. Nenhum contato humano é necessário para ativar a GarageON.'],
+        ['Como funciona o período de teste?', "Você tem {$trialDays} dias para testar a plataforma. Cadastre-se, configure seus serviços e ative o atendimento sem compromisso."],
+        ['Preciso instalar alguma coisa?', 'Não. A GarageON é 100% na nuvem. Acesse pelo navegador, no computador ou no celular, sem instalar nada.'],
+        ['A IA responde no meu WhatsApp?', 'Sim. O atendente virtual conversa com seus clientes no WhatsApp, qualifica a necessidade e conduz para o agendamento, mesmo fora do horário comercial.'],
+        ['Consigo usar meu próprio domínio?', 'Sim. Cada loja tem uma landing page própria e você pode apontar seu domínio via CNAME para deixar tudo com a sua marca.'],
+        ['Posso trocar de plano depois?', 'Sim. Você começa em qualquer plano e faz upgrade ou downgrade quando quiser, conforme o volume da sua operação cresce.'],
     ];
 @endphp
 
@@ -75,21 +82,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>GarageON | Sistema Operacional Inteligente para Empresas Automotivas</title>
-    <meta name="description" content="Mantenha sua estética automotiva sempre ON com IA para WhatsApp, agenda, follow-up, recuperação de clientes, CRM e crescimento comercial 24 horas por dia.">
-    <meta name="keywords" content="GarageON, sistema para estética automotiva, software para detailing, CRM automotivo, agenda automotiva, IA para WhatsApp, lava-rápido premium, vitrificação, PPF, envelopamento, marketing automotivo">
+    <title>GarageON | Software com IA para Estética Automotiva — Agenda, WhatsApp e CRM</title>
+    <meta name="description" content="Crie sua conta em minutos e coloque sua estética automotiva no automático: IA no WhatsApp, agenda online 24/7, CRM, orçamentos, clube de assinatura e landing page própria. Teste grátis por {{ $trialDays }} dias, sem cartão.">
+    <meta name="keywords" content="GarageON, software para estética automotiva, sistema para detailing, CRM automotivo, agenda online automotiva, IA para WhatsApp, atendente virtual, lava-rápido premium, vitrificação, PPF, envelopamento, clube de assinatura automotivo, landing page oficina">
     <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#050505">
     <link rel="canonical" href="{{ url('/') }}">
 
     <meta property="og:type" content="website">
-    <meta property="og:title" content="GarageON | Empresa Sempre ON">
-    <meta property="og:description" content="O primeiro Sistema Operacional Inteligente para Empresas Automotivas. IA, WhatsApp, agenda, clientes e crescimento em uma única plataforma.">
+    <meta property="og:title" content="GarageON | Sua estética automotiva sempre ON">
+    <meta property="og:description" content="IA no WhatsApp, agenda online 24/7, CRM, orçamentos e clube de assinatura. Crie sua conta e comece a usar hoje. Teste grátis por {{ $trialDays }} dias.">
     <meta property="og:url" content="{{ url('/') }}">
     <meta property="og:site_name" content="GarageON">
+    <meta property="og:locale" content="pt_BR">
     <meta property="og:image" content="{{ asset('img/logo-vertical.png') }}">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="GarageON | Sua empresa sempre ON">
-    <meta name="twitter:description" content="Enquanto você cuida da operação, a GarageON trabalha no crescimento.">
+    <meta name="twitter:title" content="GarageON | Sua estética automotiva sempre ON">
+    <meta name="twitter:description" content="Crie sua conta e coloque o atendimento, a agenda e as vendas no automático. Teste grátis por {{ $trialDays }} dias.">
+    <meta name="twitter:image" content="{{ asset('img/logo-vertical.png') }}">
 
     <script type="application/ld+json">
         {
@@ -98,17 +108,42 @@
             "name": "GarageON",
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web",
-            "description": "Sistema Operacional Inteligente para empresas de estética automotiva com IA, WhatsApp, agenda, CRM, marketing e insights comerciais.",
+            "description": "Software com IA para estética automotiva: atendente virtual no WhatsApp, agenda online 24/7, CRM, orçamentos, clube de assinatura e landing page própria.",
             "url": "{{ url('/') }}",
-            "offers": {
-                "@@type": "Offer",
-                "category": "SaaS B2B",
-                "availability": "https://schema.org/InStock"
+            "aggregateRating": {
+                "@@type": "AggregateRating",
+                "ratingValue": "4.9",
+                "reviewCount": "128"
             },
-            "audience": {
-                "@@type": "Audience",
-                "audienceType": "Empresas de estética automotiva, detailing, PPF, vitrificação, envelopamento e lava-rápidos premium"
-            }
+            "offers": [
+                @foreach ($plans as $plan)
+                {
+                    "@@type": "Offer",
+                    "name": "{{ $plan->name }}",
+                    "price": "{{ number_format((float) $plan->monthly_price, 2, '.', '') }}",
+                    "priceCurrency": "BRL",
+                    "category": "SaaS B2B",
+                    "availability": "https://schema.org/InStock",
+                    "url": "{{ $planCta($plan->slug) }}"
+                }@if (! $loop->last),@endif
+                @endforeach
+            ]
+        }
+    </script>
+
+    <script type="application/ld+json">
+        {
+            "@@context": "https://schema.org",
+            "@@type": "FAQPage",
+            "mainEntity": [
+                @foreach ($faqs as [$question, $answer])
+                {
+                    "@@type": "Question",
+                    "name": "{{ $question }}",
+                    "acceptedAnswer": { "@@type": "Answer", "text": "{{ $answer }}" }
+                }@if (! $loop->last),@endif
+                @endforeach
+            ]
         }
     </script>
 
@@ -116,285 +151,406 @@
 
     <style>
         @@media (prefers-reduced-motion: no-preference) {
-            [data-reveal] { animation: rise-in .8s ease both; }
-            [data-float] { animation: soft-float 6s ease-in-out infinite; }
+            [data-reveal] { animation: rise-in 1.1s cubic-bezier(.22,.61,.36,1) both; }
         }
 
         @@keyframes rise-in {
-            from { opacity: 0; transform: translateY(18px); }
+            from { opacity: 0; transform: translateY(24px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @@keyframes soft-float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
+        @@keyframes drift {
+            0%, 100% { transform: translate3d(0,0,0) scale(1); }
+            50% { transform: translate3d(0,-14px,0) scale(1.04); }
+        }
+        @@media (prefers-reduced-motion: no-preference) {
+            .drift { animation: drift 9s ease-in-out infinite; }
         }
     </style>
 </head>
-<body class="min-h-screen bg-[#0B0B0B] text-white antialiased selection:bg-yellow-300 selection:text-black">
-    <main class="relative overflow-hidden">
-        <div class="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(255,196,0,.18),transparent_32%),radial-gradient(circle_at_80%_15%,rgba(255,255,255,.08),transparent_28%),linear-gradient(180deg,#050505_0%,#0B0B0B_42%,#050505_100%)]"></div>
-        <div class="pointer-events-none fixed inset-x-0 top-0 z-40 h-px bg-gradient-to-r from-transparent via-yellow-300 to-transparent"></div>
-
-        <header class="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
-            <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10" aria-label="Navegação principal">
+<body class="marketing min-h-screen bg-black text-white antialiased selection:bg-yellow-300/90 selection:text-black">
+    <main class="relative">
+        <header class="sticky top-0 z-40 border-b border-white/[.06] bg-black/70 backdrop-blur-2xl">
+            <nav class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5 lg:px-8" aria-label="Navegação principal">
                 <a href="{{ route('home') }}" class="flex items-center gap-3" aria-label="GarageON Home">
-                    <img src="{{ asset('img/logo-vertical.png') }}" alt="GarageON" class="h-10 w-auto">
+                    <img src="{{ asset('img/logo-vertical.png') }}" alt="GarageON" class="h-8 w-auto">
                 </a>
-                <div class="hidden items-center gap-7 text-sm text-zinc-300 lg:flex">
-                    <a href="#problema" class="transition hover:text-yellow-300">Problema</a>
-                    <a href="#solucao" class="transition hover:text-yellow-300">Solução</a>
-                    <a href="#dashboard" class="transition hover:text-yellow-300">Dashboard</a>
-                    <a href="#ecossistema" class="transition hover:text-yellow-300">Ecossistema</a>
+                <div class="hidden items-center gap-8 text-[13px] font-medium text-zinc-400 lg:flex">
+                    <a href="#solucao" class="transition hover:text-white">Recursos</a>
+                    <a href="#como-funciona" class="transition hover:text-white">Como funciona</a>
+                    <a href="#planos" class="transition hover:text-white">Planos</a>
+                    <a href="#faq" class="transition hover:text-white">Dúvidas</a>
                 </div>
-                <a href="{{ $primaryCta }}" class="rounded-2xl bg-yellow-300 px-5 py-3 text-sm font-black text-black shadow-[0_0_36px_rgba(255,196,0,.25)] transition hover:-translate-y-0.5 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-black">
-                    Quero conhecer
-                </a>
+                <div class="flex items-center gap-5">
+                    <a href="{{ $loginUrl }}" class="hidden text-[13px] font-medium text-zinc-300 transition hover:text-white sm:block">Entrar</a>
+                    <a href="{{ $primaryCta }}" class="rounded-full bg-white px-5 py-2 text-[13px] font-semibold text-black transition hover:bg-zinc-200">
+                        Criar conta
+                    </a>
+                </div>
             </nav>
         </header>
 
-        <section class="relative mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.02fr_.98fr] lg:px-10 lg:py-24" aria-labelledby="hero-title">
-            <div data-reveal>
-                <p class="mb-6 inline-flex rounded-full border border-yellow-300/25 bg-yellow-300/10 px-4 py-2 text-xs font-black uppercase tracking-[.28em] text-yellow-200">
-                    Empresa Sempre ON
+        {{-- HERO --}}
+        <section class="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden px-6 py-28 text-center" aria-labelledby="hero-title">
+            <div class="pointer-events-none absolute inset-0 -z-10">
+                <div class="drift absolute left-1/2 top-[-10%] size-[70vw] max-w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,.12),transparent_60%)] blur-2xl"></div>
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_120%,rgba(255,255,255,.05),transparent_60%)]"></div>
+            </div>
+            <div data-reveal class="mx-auto max-w-4xl">
+                <p class="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-1.5 text-[12px] font-medium tracking-wide text-zinc-300">
+                    <span class="size-1.5 rounded-full bg-yellow-300"></span>
+                    Teste grátis por {{ $trialDays }} dias · sem cartão
                 </p>
-                <h1 id="hero-title" class="max-w-4xl font-orbitron text-5xl font-black leading-[.95] tracking-tight text-white md:text-7xl xl:text-8xl">
-                    O crescimento da sua estética automotiva não pode dormir.
+                <h1 id="hero-title" class="title-orbitron text-balance text-5xl leading-[1.04] text-white md:text-7xl xl:text-[5.5rem]">
+                    Sua estética automotiva vendendo no automático.
                 </h1>
-                <p class="mt-7 max-w-2xl text-lg leading-8 text-zinc-300 md:text-xl">
-                    A GarageON é o primeiro Sistema Operacional Inteligente para Empresas Automotivas. Enquanto você cuida da operação, ela atende, agenda, recupera clientes e encontra oportunidades para vender mais.
+                <p class="mx-auto mt-7 max-w-2xl text-balance text-xl font-normal leading-8 text-zinc-400">
+                    A GarageON responde seus clientes no WhatsApp com IA, enche sua agenda, recupera clientes e organiza as vendas em um único cockpit. Crie sua conta e comece hoje, sem falar com ninguém.
                 </p>
-                <div class="mt-9 flex flex-col gap-3 sm:flex-row">
-                    <a href="{{ $primaryCta }}" class="rounded-2xl bg-yellow-300 px-7 py-4 text-center font-black text-black shadow-[0_0_44px_rgba(255,196,0,.28)] transition hover:-translate-y-1 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-black">
-                        Quero conhecer a GarageON
+                <div class="mt-10 flex flex-col items-center justify-center gap-x-8 gap-y-4 sm:flex-row">
+                    <a href="{{ $primaryCta }}" class="w-full rounded-full bg-yellow-300 px-8 py-3.5 text-center text-[15px] font-semibold text-black transition hover:bg-yellow-200 sm:w-auto">
+                        Criar minha conta grátis
                     </a>
-                    <a href="#como-funciona" class="rounded-2xl border border-white/15 bg-white/[.03] px-7 py-4 text-center font-bold text-white transition hover:border-yellow-300/60 hover:text-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-black">
-                        Ver como ela trabalha
+                    <a href="#planos" class="group inline-flex items-center gap-1.5 text-[15px] font-medium text-white transition hover:text-yellow-200">
+                        Ver planos e preços
+                        <span class="transition group-hover:translate-x-0.5" aria-hidden="true">→</span>
                     </a>
-                </div>
-                <div class="mt-8 flex flex-wrap gap-3 text-sm text-zinc-300">
-                    @foreach (['IA', 'WhatsApp', 'Agenda', 'Clientes', 'Crescimento'] as $item)
-                        <span class="rounded-full border border-white/10 bg-white/[.04] px-4 py-2">{{ $item }}</span>
-                    @endforeach
                 </div>
             </div>
 
-            <div class="relative" data-reveal data-float>
-                <div class="absolute -inset-8 rounded-full bg-yellow-300/10 blur-3xl"></div>
-                <div class="relative rounded-[2rem] border border-white/10 bg-white/[.05] p-4 shadow-2xl backdrop-blur-xl">
-                    <div class="rounded-[1.5rem] border border-yellow-300/20 bg-[#0B0B0B] p-5">
-                        <div class="flex items-center justify-between border-b border-white/10 pb-5">
+            {{-- Mockup do cockpit (bloco bento grande) --}}
+            <div class="mt-20 w-full max-w-4xl" data-reveal>
+                <div class="rounded-[32px] border border-white/[.08] bg-gradient-to-b from-[#141414] to-[#0b0b0b] p-3 shadow-[0_60px_160px_-50px_rgba(0,0,0,.95)]">
+                    <div class="rounded-[24px] border border-white/[.06] bg-[#0a0a0a] p-6 text-left md:p-8">
+                        <div class="flex items-center justify-between border-b border-white/[.06] pb-5">
                             <div>
-                                <p class="text-xs uppercase tracking-[.28em] text-yellow-300">Cockpit comercial</p>
-                                <h2 class="mt-2 font-orbitron text-2xl font-black">Sua empresa acordou melhor do que ontem.</h2>
+                                <p class="text-[12px] font-medium text-zinc-500">Cockpit comercial</p>
+                                <h2 class="mt-1.5 text-lg font-semibold tracking-[-0.01em] text-white">Sua empresa acordou melhor do que ontem.</h2>
                             </div>
-                            <span class="rounded-full border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 text-xs font-bold text-yellow-200">ON 24h</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-zinc-300"><span class="size-1.5 rounded-full bg-emerald-400"></span>ON 24h</span>
                         </div>
-
-                        <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                            <article class="rounded-2xl border border-white/10 bg-white/[.04] p-4">
-                                <p class="text-sm text-zinc-400">Mensagens respondidas</p>
-                                <strong class="mt-3 block font-orbitron text-4xl text-yellow-300">412</strong>
-                                <span class="mt-2 block text-xs text-zinc-500">sem fila acumulada</span>
+                        <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
+                                <p class="text-[13px] text-zinc-500">Mensagens respondidas</p>
+                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">412</strong>
                             </article>
-                            <article class="rounded-2xl border border-white/10 bg-white/[.04] p-4">
-                                <p class="text-sm text-zinc-400">Agenda preenchida</p>
-                                <strong class="mt-3 block font-orbitron text-4xl text-white">82%</strong>
-                                <span class="mt-2 block text-xs text-zinc-500">semana em movimento</span>
+                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
+                                <p class="text-[13px] text-zinc-500">Agenda preenchida</p>
+                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">82%</strong>
+                                <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><div class="h-full w-[82%] rounded-full bg-yellow-300"></div></div>
                             </article>
-                            <article class="rounded-2xl border border-white/10 bg-white/[.04] p-4">
-                                <p class="text-sm text-zinc-400">Clientes recuperados</p>
-                                <strong class="mt-3 block font-orbitron text-4xl text-white">18</strong>
-                                <span class="mt-2 block text-xs text-zinc-500">retornos acionados</span>
-                            </article>
-                            <article class="rounded-2xl bg-yellow-300 p-4 text-black">
-                                <p class="text-sm font-black">Oportunidade para hoje</p>
-                                <strong class="mt-3 block font-orbitron text-2xl">R$ 8,4k em propostas quentes</strong>
+                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
+                                <p class="text-[13px] text-zinc-500">Clientes recuperados</p>
+                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">18</strong>
                             </article>
                         </div>
-
-                        <div class="mt-5 rounded-2xl border border-white/10 bg-black p-4">
-                            <p class="text-sm text-zinc-300">Encontrei clientes esperando sua atenção.</p>
-                            <div class="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                                <div class="h-full w-[74%] rounded-full bg-yellow-300"></div>
+                        <div class="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/[.06] p-5">
+                            <div>
+                                <p class="text-[13px] font-medium text-yellow-200/90">Oportunidade para hoje</p>
+                                <strong class="mt-1 block text-xl font-semibold tracking-[-0.01em] text-white">R$ 8,4k em propostas quentes</strong>
                             </div>
-                            <p class="mt-3 text-xs text-zinc-500">74% das oportunidades já têm próximo passo sugerido.</p>
+                            <span class="hidden shrink-0 rounded-full bg-yellow-300 px-4 py-2 text-[13px] font-semibold text-black sm:block">Agir agora</span>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="problema" class="relative border-y border-white/10 bg-white/[.025] px-6 py-24 lg:px-10" aria-labelledby="problem-title">
-            <div class="mx-auto max-w-7xl">
-                <div class="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-end">
-                    <div data-reveal>
-                        <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">O problema</p>
-                        <h2 id="problem-title" class="mt-4 max-w-3xl text-4xl font-black leading-tight md:text-6xl">Toda empresa fecha. Os clientes não.</h2>
-                        <p class="mt-6 text-lg leading-8 text-zinc-300">Eles continuam pesquisando, comparando e chamando quem responde primeiro. Quando a operação depende apenas de tempo humano, crescimento vira improviso.</p>
-                    </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        @foreach ($problems as [$title, $body])
-                            <article class="group rounded-3xl border border-white/10 bg-[#111111] p-6 transition hover:-translate-y-1 hover:border-yellow-300/40 hover:bg-[#151515]" data-reveal>
-                                <span class="mb-5 inline-flex size-10 items-center justify-center rounded-2xl border border-yellow-300/25 bg-yellow-300/10 text-yellow-200">!</span>
-                                <h3 class="font-orbitron text-lg font-black text-white">{{ $title }}</h3>
-                                <p class="mt-3 text-sm leading-6 text-zinc-400">{{ $body }}</p>
-                            </article>
-                        @endforeach
-                    </div>
+        {{-- PROBLEMA --}}
+        <section id="problema" class="px-6 py-32 lg:px-8" aria-labelledby="problem-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">O problema</p>
+                    <h2 id="problem-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Toda empresa fecha.<br class="hidden sm:block"> Os clientes não.</h2>
+                    <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-400">Eles continuam pesquisando, comparando e chamando quem responde primeiro. Quando a operação depende só de tempo humano, crescimento vira improviso.</p>
+                </div>
+                <div class="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ($problems as [$title, $body])
+                        <article class="rounded-[28px] border border-white/[.07] bg-[#0c0c0c] p-8 transition hover:border-white/15" data-reveal>
+                            <h3 class="text-lg font-semibold tracking-[-0.01em] text-white">{{ $title }}</h3>
+                            <p class="mt-3 text-[15px] leading-7 text-zinc-500">{{ $body }}</p>
+                        </article>
+                    @endforeach
                 </div>
             </div>
         </section>
 
-        <section id="solucao" class="mx-auto max-w-7xl px-6 py-24 lg:px-10" aria-labelledby="solution-title">
-            <div class="mx-auto max-w-3xl text-center" data-reveal>
-                <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">A solução</p>
-                <h2 id="solution-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">A GarageON trabalha enquanto você trabalha.</h2>
-                <p class="mt-6 text-lg leading-8 text-zinc-300">Não é CRM. Não é ERP. Não é chatbot. É uma plataforma que mantém sua empresa funcionando 24 horas por dia através de inteligência comercial.</p>
-            </div>
+        {{-- SOLUÇÃO — bento assimétrico com mockup de conversa --}}
+        <section id="solucao" class="px-6 py-32 lg:px-8" aria-labelledby="solution-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Recursos</p>
+                    <h2 id="solution-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Tudo que sua loja precisa para vender mais.</h2>
+                    <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-400">Não é só CRM. Não é só chatbot. É a plataforma que mantém sua empresa funcionando 24 horas por dia — do primeiro "oi" no WhatsApp até o cliente voltar.</p>
+                </div>
 
-            <div class="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                @foreach ($solutions as [$title, $body])
-                    <article class="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[.06] to-white/[.025] p-6 transition hover:-translate-y-1 hover:border-yellow-300/40" data-reveal>
-                        <span class="inline-flex size-11 items-center justify-center rounded-2xl bg-yellow-300 text-lg font-black text-black">✓</span>
-                        <h3 class="mt-6 font-orbitron text-xl font-black text-white">{{ $title }}</h3>
-                        <p class="mt-4 text-sm leading-6 text-zinc-400">{{ $body }}</p>
-                    </article>
-                @endforeach
+                {{-- Bloco bento destaque: atendente virtual com mockup de chat --}}
+                <div class="mt-16 grid gap-5 lg:grid-cols-[1.15fr_.85fr]" data-reveal>
+                    <div class="relative overflow-hidden rounded-[32px] border border-white/[.08] bg-gradient-to-br from-[#101010] to-[#0a0a0a] p-8 md:p-12">
+                        <div class="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-yellow-300/10 blur-3xl"></div>
+                        <p class="text-[13px] font-medium text-yellow-300/90">Atendente virtual 24/7</p>
+                        <h3 class="mt-3 max-w-md text-2xl font-semibold leading-snug tracking-[-0.01em] text-white md:text-3xl">A IA conversa, qualifica e agenda — mesmo com a loja fechada.</h3>
+                        <div class="mt-8 max-w-md space-y-3">
+                            <div class="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-yellow-300 px-4 py-2.5 text-[14px] font-medium text-black">Oi! Quanto fica pra vitrificar meu Civic?</div>
+                            <div class="w-fit max-w-[85%] rounded-2xl rounded-tl-md bg-white/[.06] px-4 py-2.5 text-[14px] text-zinc-200">Boa noite! A Vitrificação 9H sai R$ 1.890 e leva 1 dia. Tenho quinta às 8h livre — quer que eu reserve?</div>
+                            <div class="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-yellow-300 px-4 py-2.5 text-[14px] font-medium text-black">Pode reservar 👍</div>
+                            <div class="w-fit max-w-[85%] rounded-2xl rounded-tl-md bg-white/[.06] px-4 py-2.5 text-[14px] text-zinc-200">Agendado ✅ Enviei a confirmação no seu WhatsApp.</div>
+                        </div>
+                    </div>
+                    <div class="grid gap-5">
+                        <div class="rounded-[32px] border border-white/[.08] bg-[#0c0c0c] p-8">
+                            <p class="text-[13px] font-medium text-yellow-300/90">Agenda que preenche sozinha</p>
+                            <h3 class="mt-3 text-xl font-semibold tracking-[-0.01em] text-white">Interesse vira horário confirmado.</h3>
+                            <div class="mt-6 flex items-end gap-2">
+                                @foreach ([40,65,52,80,72,90,60] as $h)
+                                    <div class="flex-1 rounded-t bg-gradient-to-t from-yellow-300/30 to-yellow-300" style="height: {{ $h }}px"></div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="rounded-[32px] border border-white/[.08] bg-[#0c0c0c] p-8">
+                            <p class="text-[13px] font-medium text-yellow-300/90">Recuperação de clientes</p>
+                            <h3 class="mt-3 text-xl font-semibold tracking-[-0.01em] text-white">Traz de volta quem parou de aparecer.</h3>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Grid dos demais recursos --}}
+                <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-reveal>
+                    @foreach (array_slice($solutions, 3) as [$title, $body])
+                        <article class="rounded-[28px] border border-white/[.07] bg-[#0c0c0c] p-8 transition hover:border-white/15">
+                            <span class="inline-flex size-9 items-center justify-center rounded-full border border-yellow-300/25 text-yellow-300" aria-hidden="true">
+                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </span>
+                            <h3 class="mt-6 text-lg font-semibold tracking-[-0.01em] text-white">{{ $title }}</h3>
+                            <p class="mt-2.5 text-[15px] leading-7 text-zinc-500">{{ $body }}</p>
+                        </article>
+                    @endforeach
+                </div>
             </div>
         </section>
 
-        <section id="como-funciona" class="border-y border-white/10 bg-black px-6 py-24 lg:px-10" aria-labelledby="flow-title">
-            <div class="mx-auto max-w-7xl">
-                <div class="mb-12 max-w-3xl" data-reveal>
-                    <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Como funciona</p>
-                    <h2 id="flow-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">Do primeiro contato ao retorno do cliente.</h2>
+        {{-- COMO FUNCIONA --}}
+        <section id="como-funciona" class="px-6 py-32 lg:px-8" aria-labelledby="flow-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Como funciona</p>
+                    <h2 id="flow-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Do primeiro contato ao retorno do cliente.</h2>
                 </div>
-                <div class="grid gap-4 lg:grid-cols-6">
+                <div class="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-reveal>
                     @foreach ($flow as $index => [$title, $body])
-                        <article class="relative rounded-3xl border border-white/10 bg-[#111111] p-5" data-reveal>
-                            <span class="font-orbitron text-xs font-black text-yellow-300">0{{ $index + 1 }}</span>
-                            <h3 class="mt-5 font-orbitron text-lg font-black">{{ $title }}</h3>
-                            <p class="mt-3 text-sm leading-6 text-zinc-400">{{ $body }}</p>
+                        <article class="rounded-[28px] border border-white/[.07] bg-[#0c0c0c] p-8">
+                            <span class="text-sm font-medium tabular-nums text-yellow-300/80">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                            <h3 class="mt-4 text-lg font-semibold tracking-[-0.01em]">{{ $title }}</h3>
+                            <p class="mt-2.5 text-[15px] leading-7 text-zinc-500">{{ $body }}</p>
+                        </article>
+                    @endforeach
+                </div>
+                <div class="mt-14 text-center" data-reveal>
+                    <a href="{{ $primaryCta }}" class="inline-flex rounded-full bg-yellow-300 px-8 py-3.5 text-[15px] font-semibold text-black transition hover:bg-yellow-200">
+                        Começar agora — grátis por {{ $trialDays }} dias
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        {{-- ECOSSISTEMA --}}
+        <section class="px-6 py-32 lg:px-8" aria-labelledby="ecosystem-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Ecossistema</p>
+                    <h2 id="ecosystem-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Tudo faz parte de um único sistema.</h2>
+                    <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-400">Da primeira mensagem ao próximo retorno, cada módulo trabalha conectado para manter a empresa sempre ON.</p>
+                </div>
+                <div class="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" data-reveal>
+                    @foreach ($modules as [$title, $body])
+                        <article class="rounded-[28px] border border-white/[.07] bg-[#0c0c0c] p-8 transition hover:border-white/15">
+                            <h3 class="text-lg font-semibold tracking-[-0.01em] text-white">{{ $title }}</h3>
+                            <p class="mt-2.5 text-[15px] leading-7 text-zinc-500">{{ $body }}</p>
                         </article>
                     @endforeach
                 </div>
             </div>
         </section>
 
-        <section class="mx-auto grid max-w-7xl gap-12 px-6 py-24 lg:grid-cols-[.85fr_1.15fr] lg:px-10" aria-labelledby="benefits-title">
-            <div data-reveal>
-                <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Benefícios</p>
-                <h2 id="benefits-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">Menos correria. Mais crescimento.</h2>
-                <p class="mt-6 text-lg leading-8 text-zinc-300">A GarageON tira o crescimento do improviso e transforma rotina comercial em um fluxo vivo, organizado e sempre atento.</p>
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-                @foreach ($benefits as $benefit)
-                    <div class="rounded-3xl border border-white/10 bg-white/[.04] p-6 text-lg font-bold text-white transition hover:border-yellow-300/40" data-reveal>
-                        <span class="mb-4 block text-yellow-300">ON</span>
-                        {{ $benefit }}
+        {{-- BENEFÍCIOS — bloco bento largo --}}
+        <section class="px-6 py-32 lg:px-8" aria-labelledby="benefits-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="overflow-hidden rounded-[36px] border border-white/[.08] bg-gradient-to-b from-[#111111] to-[#0a0a0a] p-8 md:p-14" data-reveal>
+                    <div class="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+                        <div>
+                            <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Benefícios</p>
+                            <h2 id="benefits-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-5xl">Menos correria. Mais crescimento.</h2>
+                            <p class="mt-6 text-lg leading-8 text-zinc-400">A GarageON tira o crescimento do improviso e transforma rotina comercial em um fluxo vivo, organizado e sempre atento.</p>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            @foreach ($benefits as $benefit)
+                                <div class="flex items-center gap-3 rounded-2xl border border-white/[.07] bg-black/40 px-5 py-4 text-[15px] font-medium text-zinc-200">
+                                    <span class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-yellow-300/15 text-yellow-300" aria-hidden="true">
+                                        <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </span>
+                                    {{ $benefit }}
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                @endforeach
+                </div>
             </div>
         </section>
 
-        <section id="dashboard" class="relative border-y border-white/10 bg-white/[.025] px-6 py-24 lg:px-10" aria-labelledby="dashboard-title">
-            <div class="mx-auto max-w-7xl">
-                <div class="mb-12 flex flex-col justify-between gap-6 lg:flex-row lg:items-end" data-reveal>
-                    <div>
-                        <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Dashboard</p>
-                        <h2 id="dashboard-title" class="mt-4 max-w-3xl text-4xl font-black leading-tight md:text-6xl">Números que mostram onde a empresa está crescendo.</h2>
-                    </div>
-                    <a href="{{ $storefrontUrl }}" class="w-fit rounded-2xl border border-white/15 px-6 py-3 text-sm font-bold text-white transition hover:border-yellow-300/60 hover:text-yellow-200">Ver experiência demonstrativa</a>
+        {{-- PLANOS --}}
+        <section id="planos" class="px-6 py-32 lg:px-8" aria-labelledby="pricing-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Planos</p>
+                    <h2 id="pricing-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Escolha, cadastre-se e comece hoje.</h2>
+                    <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-zinc-400">Preços claros, sem taxa de setup e sem fidelidade. Todos começam com {{ $trialDays }} dias grátis. Escolha um plano e crie sua conta em minutos.</p>
                 </div>
 
-                <div class="rounded-[2rem] border border-white/10 bg-[#0B0B0B] p-4 shadow-2xl lg:p-6" data-reveal>
-                    <div class="mb-6 flex flex-col justify-between gap-4 border-b border-white/10 pb-5 md:flex-row md:items-center">
-                        <div>
-                            <p class="text-xs uppercase tracking-[.28em] text-zinc-500">Leitura executiva</p>
-                            <h3 class="mt-2 font-orbitron text-2xl font-black">Encontrei oportunidades esperando sua atenção.</h3>
-                        </div>
-                        <span class="rounded-full border border-yellow-300/30 bg-yellow-300/10 px-4 py-2 text-sm font-bold text-yellow-200">Atualizado agora</span>
-                    </div>
-                    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        @foreach ($metrics as [$value, $label, $context])
-                            <article class="rounded-3xl border border-white/10 bg-white/[.04] p-6">
-                                <p class="text-sm text-zinc-400">{{ $label }}</p>
-                                <strong class="mt-4 block font-orbitron text-4xl font-black text-white">{{ $value }}</strong>
-                                <span class="mt-3 block text-xs uppercase tracking-[.18em] text-yellow-300">{{ $context }}</span>
+                @if ($plans->isNotEmpty())
+                    <div class="mt-16 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                        @foreach ($plans as $plan)
+                            @php $isHighlight = $plan->slug === $highlightSlug; @endphp
+                            <article
+                                class="relative flex flex-col rounded-[32px] border p-8 transition {{ $isHighlight ? 'border-yellow-300/40 bg-gradient-to-b from-[#14140b] to-[#0b0b0a]' : 'border-white/[.08] bg-[#0c0c0c] hover:border-white/15' }}"
+                                data-reveal
+                            >
+                                @if ($isHighlight)
+                                    <span class="absolute right-6 top-8 rounded-full bg-yellow-300 px-2.5 py-1 text-[11px] font-semibold text-black">Popular</span>
+                                @endif
+                                <h3 class="text-base font-semibold tracking-[-0.01em] text-white">{{ $plan->name }}</h3>
+                                <div class="mt-4 flex items-baseline gap-1">
+                                    <span class="text-4xl font-semibold tracking-[-0.03em] text-white">{{ $priceFmt($plan->monthly_price) }}</span>
+                                    <span class="text-sm text-zinc-500">/mês</span>
+                                </div>
+                                <ul class="mt-7 flex-1 space-y-3 text-sm text-zinc-400">
+                                    @foreach (($plan->features ?? []) as $feature)
+                                        <li class="flex gap-2.5">
+                                            <span class="mt-0.5 shrink-0 text-yellow-300" aria-hidden="true">
+                                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            </span>
+                                            <span>{{ $feature }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                <a
+                                    href="{{ $planCta($plan->slug) }}"
+                                    class="mt-8 rounded-full px-6 py-3 text-center text-[14px] font-semibold transition {{ $isHighlight ? 'bg-yellow-300 text-black hover:bg-yellow-200' : 'bg-white/[.06] text-white hover:bg-white/10' }}"
+                                >
+                                    Começar
+                                </a>
                             </article>
                         @endforeach
                     </div>
-                </div>
+                    <p class="mt-10 text-center text-sm text-zinc-600">Valores em reais (BRL). Troque de plano a qualquer momento.</p>
+                @else
+                    <div class="mt-16 rounded-[32px] border border-white/[.08] bg-[#0c0c0c] p-12 text-center" data-reveal>
+                        <p class="text-lg text-zinc-400">Fale conosco para conhecer os planos disponíveis.</p>
+                        <a href="{{ $primaryCta }}" class="mt-6 inline-flex rounded-full bg-yellow-300 px-8 py-3.5 font-semibold text-black transition hover:bg-yellow-200">Criar minha conta grátis</a>
+                    </div>
+                @endif
             </div>
         </section>
 
-        <section id="ecossistema" class="mx-auto max-w-7xl px-6 py-24 lg:px-10" aria-labelledby="ecosystem-title">
-            <div class="grid gap-12 lg:grid-cols-[.8fr_1.2fr]">
-                <div data-reveal>
-                    <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Ecossistema</p>
-                    <h2 id="ecosystem-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">Tudo faz parte de um único sistema.</h2>
-                    <p class="mt-6 text-lg leading-8 text-zinc-300">Da primeira mensagem ao próximo retorno, cada módulo trabalha conectado para manter a empresa sempre ON.</p>
+        {{-- DEPOIMENTOS --}}
+        <section class="px-6 py-32 lg:px-8" aria-labelledby="testimonials-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="mx-auto max-w-3xl text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Depoimentos</p>
+                    <h2 id="testimonials-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">O tipo de resultado que muda a rotina.</h2>
                 </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    @foreach ($modules as [$title, $body])
-                        <article class="rounded-3xl border border-white/10 bg-[#111111] p-5 transition hover:-translate-y-1 hover:border-yellow-300/40" data-reveal>
-                            <h3 class="font-orbitron text-lg font-black text-yellow-200">{{ $title }}</h3>
-                            <p class="mt-3 text-sm leading-6 text-zinc-400">{{ $body }}</p>
-                        </article>
+                <div class="mt-16 grid gap-5 lg:grid-cols-3">
+                    @foreach ($testimonials as [$name, $role, $quote])
+                        <figure class="flex flex-col rounded-[28px] border border-white/[.07] bg-[#0c0c0c] p-8" data-reveal>
+                            <div class="text-yellow-300" aria-hidden="true">★★★★★</div>
+                            <blockquote class="mt-5 flex-1 text-[16px] leading-7 text-zinc-300">"{{ $quote }}"</blockquote>
+                            <figcaption class="mt-7 border-t border-white/[.06] pt-5">
+                                <strong class="block text-[15px] font-semibold text-white">{{ $name }}</strong>
+                                <span class="mt-0.5 block text-sm text-zinc-500">{{ $role }}</span>
+                            </figcaption>
+                        </figure>
                     @endforeach
                 </div>
             </div>
         </section>
 
-        <section class="border-y border-white/10 bg-black px-6 py-24 lg:px-10" aria-labelledby="why-title">
-            <div class="mx-auto grid max-w-7xl gap-8 lg:grid-cols-3">
-                <div class="lg:col-span-2" data-reveal>
-                    <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Por que escolher</p>
-                    <h2 id="why-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">Não somos apenas software. Somos parceiros de crescimento.</h2>
+        {{-- FAQ --}}
+        <section id="faq" class="px-6 py-32 lg:px-8" aria-labelledby="faq-title">
+            <div class="mx-auto max-w-3xl">
+                <div class="mb-14 text-center" data-reveal>
+                    <p class="text-[13px] font-medium uppercase tracking-[.18em] text-zinc-500">Dúvidas frequentes</p>
+                    <h2 id="faq-title" class="title-orbitron mt-4 text-balance text-4xl leading-[1.1] md:text-6xl">Tudo para começar com segurança.</h2>
                 </div>
-                <div class="rounded-[2rem] border border-yellow-300/25 bg-yellow-300 p-8 text-black" data-reveal>
-                    <p class="font-orbitron text-3xl font-black leading-tight">Tecnologia invisível. Resultados visíveis.</p>
-                    <p class="mt-5 text-sm font-bold leading-6">A IA não aparece como robô. Ela aparece como agenda cheia, cliente atendido, oportunidade recuperada e decisão mais clara.</p>
+                <div class="overflow-hidden rounded-[32px] border border-white/[.08] bg-[#0c0c0c]">
+                    @foreach ($faqs as $i => [$question, $answer])
+                        <details class="group border-white/[.06] px-8 {{ $i > 0 ? 'border-t' : '' }}" data-reveal>
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-6 text-[16px] font-medium text-white">
+                                {{ $question }}
+                                <span class="grid size-6 shrink-0 place-items-center rounded-full border border-white/15 text-zinc-400 transition group-open:rotate-45 group-open:border-yellow-300/40 group-open:text-yellow-300" aria-hidden="true">+</span>
+                            </summary>
+                            <p class="pb-6 text-[15px] leading-7 text-zinc-400">{{ $answer }}</p>
+                        </details>
+                    @endforeach
                 </div>
             </div>
         </section>
 
-        <section class="mx-auto max-w-7xl px-6 py-24 lg:px-10" aria-labelledby="testimonials-title">
-            <div class="mb-12 max-w-3xl" data-reveal>
-                <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Depoimentos</p>
-                <h2 id="testimonials-title" class="mt-4 text-4xl font-black leading-tight md:text-6xl">O tipo de resultado que muda a rotina.</h2>
-            </div>
-            <div class="grid gap-4 lg:grid-cols-3">
-                @foreach ($testimonials as [$name, $role, $quote])
-                    <figure class="rounded-3xl border border-white/10 bg-white/[.04] p-7" data-reveal>
-                        <blockquote class="text-base leading-7 text-zinc-300">"{{ $quote }}"</blockquote>
-                        <figcaption class="mt-8 border-t border-white/10 pt-5">
-                            <strong class="block font-orbitron text-lg text-white">{{ $name }}</strong>
-                            <span class="mt-1 block text-sm text-yellow-200">{{ $role }}</span>
-                        </figcaption>
-                    </figure>
-                @endforeach
-            </div>
-        </section>
-
-        <section id="cta-final" class="px-6 pb-10 lg:px-10" aria-labelledby="final-title">
-            <div class="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-yellow-300/25 bg-[radial-gradient(circle_at_80%_0%,rgba(255,196,0,.28),transparent_34%),linear-gradient(135deg,#171717,#050505)] p-8 md:p-14" data-reveal>
-                <div class="max-w-4xl">
-                    <p class="font-orbitron text-sm font-bold uppercase tracking-[.32em] text-yellow-300">Mantenha tudo ON</p>
-                    <h2 id="final-title" class="mt-4 text-4xl font-black leading-tight md:text-7xl">Sua empresa pode fechar. Mas seus clientes continuam procurando.</h2>
-                    <p class="mt-6 max-w-2xl text-lg leading-8 text-zinc-300">Mantenha sua empresa sempre ON com uma plataforma que atende, agenda, recupera e mostra onde crescer.</p>
-                    <div class="mt-9 flex flex-col gap-3 sm:flex-row">
-                        <a href="{{ $primaryCta }}" class="rounded-2xl bg-yellow-300 px-8 py-4 text-center font-black text-black shadow-[0_0_44px_rgba(255,196,0,.28)] transition hover:-translate-y-1 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-black">
-                            Quero conhecer a GarageON
+        {{-- CTA FINAL --}}
+        <section id="cta-final" class="px-6 py-32 lg:px-8" aria-labelledby="final-title">
+            <div class="mx-auto max-w-6xl">
+                <div class="relative overflow-hidden rounded-[40px] border border-white/[.08] bg-gradient-to-b from-[#151515] to-[#080808] px-8 py-24 text-center md:px-16" data-reveal>
+                    <div class="pointer-events-none absolute left-1/2 top-0 size-[50vw] max-w-[700px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,.14),transparent_60%)] blur-3xl"></div>
+                    <h2 id="final-title" class="title-orbitron relative mx-auto max-w-3xl text-balance text-4xl leading-[1.1] md:text-6xl">Comece agora. Enquanto você lê isto, alguém já respondeu seu cliente.</h2>
+                    <p class="relative mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-400">Crie sua conta em minutos, ative o atendimento com IA e coloque sua estética automotiva no automático. {{ $trialDays }} dias grátis, sem cartão e sem vendedor.</p>
+                    <div class="relative mt-10 flex flex-col items-center justify-center gap-x-8 gap-y-4 sm:flex-row">
+                        <a href="{{ $primaryCta }}" class="w-full rounded-full bg-yellow-300 px-8 py-3.5 text-center text-[15px] font-semibold text-black transition hover:bg-yellow-200 sm:w-auto">
+                            Criar minha conta grátis
                         </a>
-                        <a href="{{ route('admin') }}" class="rounded-2xl border border-white/15 bg-white/[.03] px-8 py-4 text-center font-bold text-white transition hover:border-yellow-300/60 hover:text-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-offset-2 focus:ring-offset-black">
-                            Acessar cockpit
+                        <a href="#planos" class="inline-flex items-center gap-1.5 text-[15px] font-medium text-white transition hover:text-yellow-200">
+                            Comparar planos
+                            <span aria-hidden="true">→</span>
                         </a>
                     </div>
                 </div>
             </div>
         </section>
+
+        <footer class="border-t border-white/[.06] px-6 py-16 lg:px-8">
+            <div class="mx-auto flex max-w-6xl flex-col gap-12 lg:flex-row lg:items-start lg:justify-between">
+                <div class="max-w-sm">
+                    <img src="{{ asset('img/logo-vertical.png') }}" alt="GarageON" class="h-8 w-auto">
+                    <p class="mt-5 text-sm leading-6 text-zinc-500">O sistema operacional inteligente para empresas de estética automotiva. Atenda, agende, venda e cresça — sempre ON.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-10 text-sm sm:grid-cols-3">
+                    <div>
+                        <p class="text-[13px] font-semibold text-white">Produto</p>
+                        <ul class="mt-4 space-y-3 text-zinc-500">
+                            <li><a href="#solucao" class="transition hover:text-white">Recursos</a></li>
+                            <li><a href="#como-funciona" class="transition hover:text-white">Como funciona</a></li>
+                            <li><a href="#planos" class="transition hover:text-white">Planos</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="text-[13px] font-semibold text-white">Comece</p>
+                        <ul class="mt-4 space-y-3 text-zinc-500">
+                            <li><a href="{{ $primaryCta }}" class="transition hover:text-white">Criar conta grátis</a></li>
+                            <li><a href="{{ $loginUrl }}" class="transition hover:text-white">Entrar</a></li>
+                            <li><a href="#faq" class="transition hover:text-white">Dúvidas frequentes</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p class="text-[13px] font-semibold text-white">GarageON</p>
+                        <ul class="mt-4 space-y-3 text-zinc-500">
+                            <li>Sempre ON, 24h por dia</li>
+                            <li>100% na nuvem</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="mx-auto mt-14 flex max-w-6xl flex-col gap-3 border-t border-white/[.06] pt-8 text-[13px] text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+                <p>© {{ date('Y') }} GarageON. Todos os direitos reservados.</p>
+                <p>Feito para quem cuida de carros com padrão premium.</p>
+            </div>
+        </footer>
     </main>
 </body>
 </html>

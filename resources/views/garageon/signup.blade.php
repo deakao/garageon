@@ -27,12 +27,25 @@
                 <p class="mt-2 text-sm leading-6 text-zinc-400">Conte um pouco sobre sua operação e defina sua senha para entrar no painel agora.</p>
             </div>
 
+            @isset($selectedPlan)
+                <div class="mt-6 flex items-center justify-between rounded-xl border border-yellow-300/30 bg-yellow-300/10 px-4 py-3">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[.2em] text-yellow-300">Plano escolhido</p>
+                        <p class="mt-1 font-orbitron text-lg font-black text-white">{{ $selectedPlan->name }}</p>
+                    </div>
+                    <span class="font-orbitron text-lg font-black text-yellow-200">R$ {{ number_format((float) $selectedPlan->monthly_price, 0, ',', '.') }}<span class="text-xs font-bold">/mês</span></span>
+                </div>
+            @endisset
+
             @if (session('status'))
                 <p class="mt-6 rounded-xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-sm leading-6 text-yellow-100">{{ session('status') }}</p>
             @endif
 
             <form method="POST" action="{{ route('signup.store') }}" class="mt-8 space-y-5">
                 @csrf
+                @isset($selectedPlan)
+                    <input type="hidden" name="plan" value="{{ $selectedPlan->slug }}">
+                @endisset
 
                 <div class="grid gap-5 sm:grid-cols-2">
                     <div>

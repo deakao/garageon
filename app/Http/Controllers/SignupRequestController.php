@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Plan;
 use App\Models\SignupRequest;
 use App\Models\Tenant;
 use App\Models\User;
@@ -14,9 +15,15 @@ use Illuminate\View\View;
 
 class SignupRequestController extends Controller
 {
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('garageon.signup');
+        $selectedPlan = Plan::where('active', true)
+            ->where('slug', $request->query('plano'))
+            ->first();
+
+        return view('garageon.signup', [
+            'selectedPlan' => $selectedPlan,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -30,19 +37,26 @@ class SignupRequestController extends Controller
             'business_type' => ['required', 'string', 'max:80'],
             'monthly_leads' => ['nullable', 'string', 'max:60'],
             'main_challenge' => ['nullable', 'string', 'max:120'],
+            'plan' => ['nullable', 'string', 'exists:plans,slug'],
         ]);
 
-        $user = DB::transaction(function () use ($request, $validated): User {
+        $plan = ! empty($validated['plan'])
+            ? Plan::where('slug', $validated['plan'])->where('active', true)->first()
+            : null;
+
+        $user = DB::transaction(function () use ($request, $validated, $plan): User {
             SignupRequest::create([
-                ...collect($validated)->except('password')->all(),
+                ...collect($validated)->except(['password', 'plan'])->all(),
                 'metadata' => [
                     'source' => 'home_signup',
+                    'plan' => $plan?->slug,
                     'ip' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ],
             ]);
 
             $tenant = Tenant::create([
+                'plan_id' => $plan?->id,
                 'name' => $validated['business_name'],
                 'slug' => $this->uniqueTenantSlug($validated['business_name']),
                 'whatsapp_phone' => $validated['whatsapp_phone'],

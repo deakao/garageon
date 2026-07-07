@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap');
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -9,10 +10,27 @@
     --font-sans: 'Orbitron', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
     --font-orbitron: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+    /* Fonte de texto premium (SF-like) para páginas públicas/marketing */
+    --font-inter: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 body {
     font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Página de marketing usa Inter com renderização premium; Orbitron fica só na marca via .font-orbitron */
+.marketing {
+    font-family: var(--font-inter);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+}
+
+/* Títulos com Orbitron: peso e espaçamento ajustados para não colar as letras da display */
+.marketing .title-orbitron {
+    font-family: var(--font-orbitron);
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
 
 * {
