@@ -34,6 +34,7 @@
             ['label' => 'Novo Agendamento', 'component' => 'tabler-calendar-plus', 'overlay' => 'appointment-modal', 'primary' => false],
             ['label' => 'Orçamentos', 'component' => 'tabler-file-invoice', 'href' => route('quotes.index'), 'primary' => false],
             ['label' => 'Clientes', 'component' => 'tabler-users', 'href' => route('customers.index'), 'primary' => false],
+            ['label' => 'Chat', 'component' => 'tabler-brand-whatsapp', 'href' => route('chat.index'), 'primary' => false],
         ];
         $paymentTotals = $dashboardStats['month_sales_by_payment'];
         $payments = [

@@ -31,13 +31,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function (): void {
-            $growth = Plan::create([
+            $growth = Plan::updateOrCreate(['slug' => 'performance'], [
                 'name' => 'Performance',
-                'slug' => 'performance',
                 'monthly_price' => 497,
                 'locations_limit' => 3,
+                'ai_daily_message_limit' => 600,
                 'features' => [
                     'Auto-agendamento 24/7',
+                    'Atendente virtual: até 600 respostas/dia',
                     'Chatbot WhatsApp',
                     'Vendedor digital',
                     'Clube de assinatura',
@@ -45,20 +46,29 @@ class DatabaseSeeder extends Seeder
                 ],
             ]);
 
-            Plan::create([
+            Plan::updateOrCreate(['slug' => 'starter'], [
                 'name' => 'Starter',
-                'slug' => 'starter',
                 'monthly_price' => 197,
                 'locations_limit' => 1,
-                'features' => ['Agenda online', 'CRM básico', 'Landing page'],
+                'ai_daily_message_limit' => 200,
+                'features' => ['Agenda online', 'Atendente virtual: até 200 respostas/dia', 'CRM básico', 'Landing page'],
             ]);
 
-            Plan::create([
+            Plan::updateOrCreate(['slug' => 'scale'], [
                 'name' => 'Scale',
-                'slug' => 'scale',
                 'monthly_price' => 897,
                 'locations_limit' => 10,
-                'features' => ['Multi-lojas', 'Automação avançada', 'Relatórios executivos'],
+                'ai_daily_message_limit' => 1200,
+                'features' => ['Multi-lojas', 'Atendente virtual: até 1.200 respostas/dia', 'Automação avançada', 'Relatórios executivos'],
+            ]);
+
+            Plan::updateOrCreate(['slug' => 'autonomia'], [
+                'name' => 'Autonomia',
+                'monthly_price' => 97,
+                'locations_limit' => 1,
+                'ai_daily_message_limit' => 0,
+                'requires_own_key' => true,
+                'features' => ['Atendente virtual ILIMITADO', 'Use sua própria chave de IA', 'Você controla o custo dos tokens', 'Agenda online', 'Landing page'],
             ]);
 
             $tenant = Tenant::create([

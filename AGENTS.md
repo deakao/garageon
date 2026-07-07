@@ -20,18 +20,19 @@ GarageON é um SaaS multi-tenant para oficinas de estética automotiva. Cada ten
 ## Comandos Úteis
 
 ```bash
-composer install
-npm install
-php artisan migrate:fresh --seed
-npm run build
-php artisan test
-./vendor/bin/pint --dirty
+docker compose up -d --build
+docker compose exec app composer install
+docker run --rm -it -v "$PWD":/app -w /app node:22-alpine npm install
+docker compose exec app php artisan migrate:fresh --seed
+docker run --rm -it -v "$PWD":/app -w /app node:22-alpine npm run build
+docker compose exec app php artisan test
+docker compose exec app ./vendor/bin/pint --dirty
 ```
 
 Para desenvolvimento local:
 
 ```bash
-composer run dev
+docker compose up -d
 ```
 
 ## Convenções de Domínio
@@ -47,8 +48,8 @@ composer run dev
 - Prefira Eloquent relationships explícitos nos models.
 - Migrations devem ser reversíveis e manter chaves estrangeiras com `cascadeOnDelete` ou `nullOnDelete` conforme o impacto do dado.
 - Seeders devem manter dados demonstrativos realistas para validar o fluxo visual.
-- Rode `./vendor/bin/pint --dirty` após editar PHP.
-- Rode `php artisan test` após mudanças de domínio, rotas ou migrations.
+- Rode `docker compose exec app ./vendor/bin/pint --dirty` após editar PHP.
+- Rode `docker compose exec app php artisan test` após mudanças de domínio, rotas ou migrations.
 
 ## Frontend
 

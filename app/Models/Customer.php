@@ -49,4 +49,14 @@ class Customer extends Model
     {
         return $this->hasMany(Vehicle::class);
     }
+
+    public function whatsappConversations(): HasMany
+    {
+        return $this->hasMany(WhatsappConversation::class);
+    }
+
+    public function whatsappMessages(): HasMany
+    {
+        return $this->hasMany(WhatsappMessage::class);
+    }
 }

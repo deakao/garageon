@@ -5,10 +5,12 @@
         
         ['label' => 'Orçamentos', 'component' => 'tabler-file-invoice', 'href' => route('quotes.index'), 'primary' => false],
         ['label' => 'Clientes', 'component' => 'tabler-users', 'href' => route('customers.index'), 'primary' => false],
+        ['label' => 'Chat', 'component' => 'tabler-brand-whatsapp', 'href' => route('chat.index'), 'primary' => false],
     ];
 
     $settingsLinks = [
         ['label' => 'Empresa', 'route' => 'settings.company', 'component' => 'tabler-building-store'],
+        ['label' => 'Atendente virtual', 'route' => 'settings.attendant', 'component' => 'tabler-robot'],
         ['label' => 'Serviços', 'route' => 'settings.services', 'component' => 'tabler-list-check'],
         ['label' => 'Horários', 'route' => 'settings.hours', 'component' => 'tabler-clock'],
         ['label' => 'Landing page', 'route' => 'settings.landing', 'component' => 'tabler-world-www'],

@@ -85,6 +85,26 @@ class Tenant extends Model
         return $this->hasMany(Quote::class);
     }
 
+    public function whatsappConnection(): HasOne
+    {
+        return $this->hasOne(WhatsappConnection::class);
+    }
+
+    public function virtualAttendant(): HasOne
+    {
+        return $this->hasOne(VirtualAttendant::class);
+    }
+
+    public function whatsappConversations(): HasMany
+    {
+        return $this->hasMany(WhatsappConversation::class);
+    }
+
+    public function whatsappMessages(): HasMany
+    {
+        return $this->hasMany(WhatsappMessage::class);
+    }
+
     public function orderBumps(): HasMany
     {
         return $this->hasMany(OrderBump::class);

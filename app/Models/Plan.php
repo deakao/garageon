@@ -15,6 +15,8 @@ class Plan extends Model
         'slug',
         'monthly_price',
         'locations_limit',
+        'ai_daily_message_limit',
+        'requires_own_key',
         'features',
         'active',
     ];
@@ -25,6 +27,8 @@ class Plan extends Model
             'features' => 'array',
             'active' => 'boolean',
             'monthly_price' => 'decimal:2',
+            'ai_daily_message_limit' => 'integer',
+            'requires_own_key' => 'boolean',
         ];
     }
 

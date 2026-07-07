@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\AttendantProvider;
+use App\Enums\AttendantTone;
 use App\Http\Controllers\Admin\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\NewPasswordController;
 use App\Http\Controllers\Admin\PasswordResetLinkController;
+use App\Http\Controllers\Chat\ConnectionController;
 use App\Http\Controllers\SignupRequestController;
 use App\Models\Appointment;
 use App\Models\Customer;
@@ -17,7 +20,16 @@ use App\Models\TenantHoliday;
 use App\Models\TenantOperatingHour;
 use App\Models\TenantServiceCategory;
 use App\Models\Vehicle;
+use App\Models\VirtualAttendant;
+use App\Models\WhatsappConnection;
+use App\Models\WhatsappConversation;
+use App\Models\WhatsappMessage;
+use App\Services\AttendantPromptBuilder;
+use App\Services\AttendantUsage;
+use App\Services\BookingAvailability;
+use App\Services\EvolutionGoClient;
 use App\Services\VehiclePlateLookup;
+use App\Support\WhatsappPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
@@ -26,107 +38,11 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 $buildPublicBookingAvailability = function (Tenant $tenant, int $windowDays = 30): array {
-    $now = now();
-    $startsAt = $now->copy()->startOfDay();
-    $endsAt = $now->copy()->addDays($windowDays)->endOfDay();
-    $operatingHours = $tenant->operatingHours()->get()->keyBy('day_of_week');
-    $holidays = $tenant->holidays()->get();
-    $appointments = $tenant->appointments()
-        ->whereBetween('scheduled_at', [$startsAt, $endsAt])
-        ->whereNotIn('status', ['cancelled', 'canceled'])
-        ->get(['scheduled_at', 'ends_at']);
-    $services = $tenant->services()
-        ->where('is_active', true)
-        ->orderBy('name')
-        ->get();
-
-    return [
-        'generated_at' => $now->toIso8601String(),
-        'timezone' => config('app.timezone'),
-        'services' => $services->mapWithKeys(function (Service $service) use ($now, $windowDays, $operatingHours, $holidays, $appointments): array {
-            $days = [];
-
-            for ($offset = 0; $offset < $windowDays; $offset++) {
-                $date = $now->copy()->startOfDay()->addDays($offset);
-                $holiday = $holidays->first(fn (TenantHoliday $holiday) => $holiday->repeats_yearly
-                    ? $holiday->date->format('m-d') === $date->format('m-d')
-                    : $holiday->date->isSameDay($date));
-
-                if ($holiday) {
-                    continue;
-                }
-
-                $dayHour = $operatingHours->get($date->dayOfWeek);
-                $isClosed = $dayHour?->is_closed ?? $date->dayOfWeek === Carbon::SUNDAY;
-
-                if ($isClosed) {
-                    continue;
-                }
-
-                $opensAt = $dayHour?->opens_at ? substr((string) $dayHour->opens_at, 0, 5) : '08:00';
-                $closesAt = $dayHour?->closes_at ? substr((string) $dayHour->closes_at, 0, 5) : '18:00';
-                $slot = Carbon::parse($date->toDateString().' '.$opensAt);
-                $close = Carbon::parse($date->toDateString().' '.$closesAt);
-                $times = [];
-
-                while ($slot->copy()->addMinutes($service->duration_minutes)->lessThanOrEqualTo($close)) {
-                    $slotEnd = $slot->copy()->addMinutes($service->duration_minutes);
-                    $tooSoon = $slot->lessThan($now->copy()->addMinutes(30));
-                    $hasConflict = $appointments->contains(fn (Appointment $appointment) => $slot->lessThan($appointment->ends_at) && $slotEnd->greaterThan($appointment->scheduled_at));
-
-                    if (! $tooSoon && ! $hasConflict) {
-                        $times[] = [
-                            'value' => $slot->format('H:i'),
-                            'label' => $slot->format('H\hi'),
-                        ];
-                    }
-
-                    $slot->addMinutes(30);
-                }
-
-                if ($times !== []) {
-                    $days[] = [
-                        'date' => $date->toDateString(),
-                        'day' => $date->format('d'),
-                        'weekday' => Str::upper($date->translatedFormat('D')),
-                        'month_label' => Str::ucfirst($date->translatedFormat('F Y')),
-                        'date_label' => Str::ucfirst($date->translatedFormat('l, d/m')),
-                        'times' => $times,
-                    ];
-                }
-            }
-
-            return [
-                $service->id => [
-                    'id' => $service->id,
-                    'name' => $service->name,
-                    'category' => $service->category,
-                    'duration' => $service->duration_minutes,
-                    'price' => 'R$ '.number_format((float) $service->price, 2, ',', '.'),
-                    'days' => $days,
-                ],
-            ];
-        })->all(),
-    ];
+    return app(BookingAvailability::class)->forTenant($tenant, $windowDays);
 };
 
-$publicBookingSlotIsAvailable = function (Tenant $tenant, Service $service, string $date, string $time) use ($buildPublicBookingAvailability): bool {
-    $availability = $buildPublicBookingAvailability($tenant);
-    $serviceAvailability = $availability['services'][$service->id] ?? null;
-
-    if (! $serviceAvailability) {
-        return false;
-    }
-
-    foreach ($serviceAvailability['days'] as $day) {
-        if ($day['date'] !== $date) {
-            continue;
-        }
-
-        return collect($day['times'])->contains(fn (array $slot) => $slot['value'] === $time);
-    }
-
-    return false;
+$publicBookingSlotIsAvailable = function (Tenant $tenant, Service $service, string $date, string $time): bool {
+    return app(BookingAvailability::class)->slotIsAvailable($tenant, $service, $date, $time);
 };
 
 $normalizeCustomDomain = function (?string $domain): ?string {
@@ -612,6 +528,229 @@ Route::delete('/dashboard/clientes/{customer}', function (Customer $customer) {
 
     return back()->with('status', 'Cliente excluído com sucesso.');
 })->middleware('auth')->name('customers.destroy');
+
+Route::middleware('auth')->prefix('dashboard/chat')->name('chat.')->group(function () {
+    /**
+     * Monta os dados de conversas/contatos/mensagens do chat.
+     * Compartilhado entre o render inicial (index) e o polling (stream).
+     *
+     * @return array<string, mixed>
+     */
+    $buildChatData = function (Tenant $tenant, Request $request): array {
+        $conversations = $tenant->whatsappConversations()
+            ->with(['customer.vehicles'])
+            ->latest('last_message_at')
+            ->latest()
+            ->get();
+
+        $customers = $tenant->customers()
+            ->with('vehicles')
+            ->orderBy('name')
+            ->get();
+
+        $selectedConversation = null;
+        $selectedCustomer = null;
+
+        if ($request->integer('conversation')) {
+            $selectedConversation = $conversations->firstWhere('id', $request->integer('conversation'))
+                ?? $tenant->whatsappConversations()->with(['customer.vehicles'])->find($request->integer('conversation'));
+        }
+
+        if (! $selectedConversation && $request->integer('customer')) {
+            $selectedCustomer = $customers->firstWhere('id', $request->integer('customer'))
+                ?? $tenant->customers()->with('vehicles')->find($request->integer('customer'));
+        }
+
+        if (! $selectedConversation && ! $selectedCustomer) {
+            $selectedConversation = $conversations->first();
+            $selectedCustomer = $selectedConversation ? null : $customers->first();
+        }
+
+        if ($selectedConversation && $selectedConversation->unread_count > 0) {
+            $selectedConversation->forceFill(['unread_count' => 0])->save();
+        }
+
+        $messages = $selectedConversation
+            ? $selectedConversation->messages()->orderBy('occurred_at')->orderBy('id')->get()
+            : collect();
+
+        $conversationCustomerIds = $conversations->pluck('customer_id')->filter()->all();
+        $customersWithoutConversation = $customers->reject(fn (Customer $customer) => in_array($customer->id, $conversationCustomerIds, true));
+
+        return [
+            'conversations' => $conversations,
+            'customersWithoutConversation' => $customersWithoutConversation,
+            'selectedConversation' => $selectedConversation,
+            'selectedCustomer' => $selectedCustomer,
+            'messages' => $messages,
+            'chatStats' => [
+                'total_conversations' => $conversations->count(),
+                'unread' => (int) $tenant->whatsappConversations()->sum('unread_count'),
+                'messages_today' => $tenant->whatsappMessages()->whereDate('occurred_at', now())->count(),
+            ],
+        ];
+    };
+
+    Route::get('/', function (Request $request, EvolutionGoClient $evolution) use ($buildChatData) {
+        if (auth()->user()->isPlatformAdmin()) {
+            return redirect()->route('admin');
+        }
+
+        $tenant = auth()->user()->tenants()->with('plan')->firstOrFail();
+        $connection = WhatsappConnection::query()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+        ], [
+            'instance_name' => 'garageon-'.$tenant->id,
+            'status' => 'unconfigured',
+        ]);
+
+        $webhookUrl = $evolution->webhookUrl($connection->webhook_secret);
+
+        if ($connection->webhook_url !== $webhookUrl) {
+            $connection->forceFill(['webhook_url' => $webhookUrl])->save();
+        }
+
+        $connectionUpdates = [];
+
+        if (! $connection->instance_id && $connection->status !== 'unconfigured') {
+            $connectionUpdates['status'] = 'unconfigured';
+        }
+
+        if ($connection->qrcode || $connection->qrcode_code) {
+            $connectionUpdates['qrcode'] = null;
+            $connectionUpdates['qrcode_code'] = null;
+        }
+
+        if ($connectionUpdates !== []) {
+            $connection->forceFill($connectionUpdates)->save();
+        }
+
+        $chatData = $buildChatData($tenant, $request);
+
+        return view('garageon.chat.index', array_merge([
+            'tenant' => $tenant,
+            'connection' => $connection->fresh(),
+            'evolutionConfigured' => $evolution->configured(),
+            'webhookUrl' => $webhookUrl,
+        ], $chatData));
+    })->name('index');
+
+    Route::get('/stream', function (Request $request) use ($buildChatData) {
+        abort_if(auth()->user()->isPlatformAdmin(), 403);
+
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        $chatData = $buildChatData($tenant, $request);
+
+        return response()->json([
+            'list' => view('garageon.chat._list', $chatData)->render(),
+            'messages' => view('garageon.chat._messages', $chatData)->render(),
+            'stats' => $chatData['chatStats'],
+            'selected' => $chatData['selectedConversation']?->id,
+        ]);
+    })->name('stream');
+
+    Route::post('/conectar', [ConnectionController::class, 'connect'])->name('connect');
+
+    Route::delete('/desconectar', [ConnectionController::class, 'disconnect'])->name('disconnect');
+
+    Route::post('/renovar-qr', [ConnectionController::class, 'renewQr'])->name('qr.renew');
+
+    Route::post('/sincronizar', [ConnectionController::class, 'sync'])->name('sync');
+
+    Route::post('/mensagens', function (Request $request, EvolutionGoClient $evolution) {
+        if (auth()->user()->isPlatformAdmin()) {
+            abort(403);
+        }
+
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        $validated = $request->validate([
+            'conversation_id' => ['nullable', 'integer'],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('tenant_id', $tenant->id)],
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $connection = $tenant->whatsappConnection()->first();
+
+        if (! $connection?->instance_id) {
+            return back()->withErrors(['whatsapp' => 'Conecte uma instância WhatsApp antes de enviar mensagens.']);
+        }
+
+        $conversation = null;
+        $customer = null;
+
+        if (! empty($validated['conversation_id'])) {
+            $conversation = $tenant->whatsappConversations()->find($validated['conversation_id']);
+            $customer = $conversation?->customer;
+        }
+
+        if (! $conversation && ! empty($validated['customer_id'])) {
+            $customer = $tenant->customers()->findOrFail($validated['customer_id']);
+            $phone = WhatsappPhone::normalize($customer->phone);
+
+            if ($phone === '') {
+                return back()->withErrors(['whatsapp' => 'Este cliente não tem um WhatsApp válido cadastrado.']);
+            }
+
+            $conversation = WhatsappConversation::query()->firstOrCreate([
+                'tenant_id' => $tenant->id,
+                'contact_phone' => $phone,
+            ], [
+                'customer_id' => $customer->id,
+                'contact_name' => $customer->name,
+                'status' => 'open',
+            ]);
+        }
+
+        if (! $conversation) {
+            return back()->withErrors(['whatsapp' => 'Escolha um cliente ou conversa antes de enviar.']);
+        }
+
+        $result = $evolution->sendText($connection, $conversation->contact_phone, $validated['body']);
+        $payload = $result['payload'] ?? [];
+        $externalId = data_get($payload, 'data.Info.ID') ?: data_get($payload, 'messageId');
+        $status = $result['successful'] ? 'sent' : 'failed';
+
+        $messageData = [
+            'tenant_id' => $tenant->id,
+            'whatsapp_conversation_id' => $conversation->id,
+            'customer_id' => $customer?->id ?: $conversation->customer_id,
+            'external_id' => $externalId,
+            'direction' => 'outbound',
+            'type' => 'text',
+            'body' => $validated['body'],
+            'status' => $status,
+            'payload' => $payload ?: ['error' => $result['message'] ?? null],
+            'occurred_at' => now(),
+        ];
+
+        if ($externalId) {
+            WhatsappMessage::query()->updateOrCreate([
+                'tenant_id' => $tenant->id,
+                'external_id' => $externalId,
+            ], $messageData);
+        } else {
+            WhatsappMessage::query()->create($messageData);
+        }
+
+        $conversation->forceFill([
+            'customer_id' => $customer?->id ?: $conversation->customer_id,
+            'contact_name' => $customer?->name ?: $conversation->contact_name,
+            'last_message' => $validated['body'],
+            'last_message_at' => now(),
+            'status' => 'open',
+        ])->save();
+
+        $redirect = redirect()->route('chat.index', ['conversation' => $conversation->id]);
+
+        if (! $result['successful']) {
+            return $redirect
+                ->with('status', 'Mensagem registrada, mas a Evolution não confirmou o envio.')
+                ->withErrors(['whatsapp' => $result['message'] ?? 'Não consegui enviar essa mensagem agora.']);
+        }
+
+        return $redirect->with('status', 'Mensagem enviada pelo WhatsApp.');
+    })->name('messages.store');
+});
 
 Route::get('/dashboard/veiculos/placa', function (Request $request, VehiclePlateLookup $lookup) {
     if (auth()->user()->isPlatformAdmin()) {
@@ -1461,6 +1600,74 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
 
         return back()->with('status', 'Feriado removido.');
     })->name('holidays.destroy');
+
+    Route::get('/atendente', function (AttendantUsage $usage) {
+        $tenant = auth()->user()->tenants()->with('plan')->firstOrFail();
+
+        $attendant = VirtualAttendant::query()->firstOrNew(['tenant_id' => $tenant->id]);
+        $attendant->setRelation('tenant', $tenant);
+
+        return view('garageon.settings.attendant', [
+            'tenant' => $tenant,
+            'attendant' => $attendant,
+            'toneOptions' => AttendantTone::options(),
+            'providerOptions' => AttendantProvider::options(),
+            'promptPreview' => app(AttendantPromptBuilder::class)->build($attendant),
+            'dailyLimit' => $usage->limitFor($tenant),
+            'usedToday' => $usage->usedToday($tenant),
+            'requiresOwnKey' => (bool) $tenant->plan?->requires_own_key,
+        ]);
+    })->name('attendant');
+
+    Route::put('/atendente', function (Request $request) {
+        $tenant = auth()->user()->tenants()->with('plan')->firstOrFail();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'tone' => ['required', Rule::enum(AttendantTone::class)],
+            'provider' => ['required', Rule::enum(AttendantProvider::class)],
+            'model' => ['nullable', 'string', 'max:120'],
+            'api_key' => ['nullable', 'string', 'max:255'],
+            'context' => ['nullable', 'string', 'max:5000'],
+            'require_booking_confirmation' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $attendant = VirtualAttendant::query()->firstOrNew(['tenant_id' => $tenant->id]);
+
+        $attendant->fill([
+            'name' => $validated['name'],
+            'tone' => $validated['tone'],
+            'provider' => $validated['provider'],
+            'model' => ($validated['model'] ?? null) ?: null,
+            'context' => ($validated['context'] ?? null) ?: null,
+            'require_booking_confirmation' => $request->boolean('require_booking_confirmation'),
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        // Só sobrescreve a API key quando o usuário digita uma nova (campo vem vazio ao editar).
+        if (filled($validated['api_key'] ?? null)) {
+            $attendant->api_key = $validated['api_key'];
+        }
+
+        // Para ligar, precisa de alguma chave utilizável: a do tenant ou a da plataforma.
+        if ($attendant->is_active && ! filled($attendant->resolveApiKey())) {
+            return back()
+                ->withInput()
+                ->withErrors(['api_key' => 'Informe a API key do provedor para ligar o atendimento automático.']);
+        }
+
+        // No plano "traga sua própria chave", ligar exige a chave do próprio tenant.
+        if ($attendant->is_active && $tenant->plan?->requires_own_key && ! $attendant->usesOwnKey()) {
+            return back()
+                ->withInput()
+                ->withErrors(['api_key' => 'Seu plano exige que você informe sua própria API key de IA para ligar o atendente.']);
+        }
+
+        $attendant->save();
+
+        return back()->with('status', 'Piloto automático atualizado.');
+    })->name('attendant.update');
 });
 
 Route::get('/admin', function () {

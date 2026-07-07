@@ -139,6 +139,9 @@
                             value="{{ old('whatsapp_phone') }}"
                             required
                             autocomplete="tel"
+                            inputmode="numeric"
+                            maxlength="15"
+                            data-phone-mask
                             placeholder="(11) 99999-9999"
                             class="w-full rounded-xl bg-transparent px-4 py-3.5 text-white outline-none placeholder:text-zinc-600"
                         >

@@ -105,6 +105,25 @@ const formatCurrencyInput = (input) => {
     input.value = formatQuoteMoney(Number(digits) / 100);
 };
 
+const formatPhoneInput = (input) => {
+    const digits = input.value.replace(/\D/g, '').slice(0, 11);
+
+    if (digits.length <= 2) {
+        input.value = digits ? `(${digits}` : '';
+
+        return;
+    }
+
+    if (digits.length <= 6) {
+        input.value = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+
+        return;
+    }
+
+    const prefixLength = digits.length === 11 ? 7 : 6;
+    input.value = `(${digits.slice(0, 2)}) ${digits.slice(2, prefixLength)}-${digits.slice(prefixLength)}`;
+};
+
 const refreshQuoteTotalForEditor = (editor) => {
     const totalEl = editor?.querySelector('[data-quote-total]');
 
@@ -351,6 +370,11 @@ document.querySelectorAll('[data-vehicle-lookup]').forEach(initVehicleLookup);
 
 document.querySelectorAll('[data-currency-mask]').forEach((input) => {
     input.addEventListener('input', () => formatCurrencyInput(input));
+});
+
+document.querySelectorAll('[data-phone-mask]').forEach((input) => {
+    formatPhoneInput(input);
+    input.addEventListener('input', () => formatPhoneInput(input));
 });
 
 document.querySelector('[data-sale-service-select]')?.addEventListener('change', (event) => {

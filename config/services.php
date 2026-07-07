@@ -47,4 +47,14 @@ return [
         'cname_target' => env('GARAGEON_CNAME_TARGET'),
     ],
 
+    'evolution_go' => [
+        'url' => env('EVOLUTION_GO_URL'),
+        'api_key' => env('EVOLUTION_GO_API_KEY'),
+        'timeout' => env('EVOLUTION_GO_TIMEOUT', 12),
+        // URL base que a Evolution usa para chamar o webhook do GarageON.
+        // Precisa ser alcançável de dentro do container da Evolution
+        // (ex.: http://nginx na mesma rede Docker), diferente do APP_URL público.
+        'webhook_base_url' => env('EVOLUTION_GO_WEBHOOK_BASE_URL'),
+    ],
+
 ];
