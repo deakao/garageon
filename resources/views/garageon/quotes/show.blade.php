@@ -6,7 +6,7 @@
     <title>Orçamento #{{ str_pad((string) $quote->id, 4, '0', STR_PAD_LEFT) }} - {{ $tenant->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#070707] text-white antialiased">
+<body class="marketing min-h-screen bg-[#070707] text-white antialiased">
     @php $shareUrl = $quote->publicUrl(); @endphp
     @php
         $whatsappText = rawurlencode("Olá {$quote->customer->name}! Segue o orçamento da {$tenant->name}: {$shareUrl}");

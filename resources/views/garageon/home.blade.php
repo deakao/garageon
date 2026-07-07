@@ -26,6 +26,7 @@
         ['Orçamentos e vendas', 'Envie propostas com link público, feche vendas e acompanhe o faturamento por origem.'],
         ['Landing page própria', 'Cada loja ganha uma página com domínio próprio para captar e converter leads.'],
         ['Clube de assinatura', 'Crie recorrência com planos mensais e receita previsível todo mês.'],
+        ['Fidelidade & pós-venda', 'Programa de pontos e automações de retorno para transformar clientes em recorrentes.'],
         ['Cockpit em tempo real', 'Um painel mostra o que aconteceu, o que importa agora e onde agir primeiro.'],
     ];
 
@@ -294,7 +295,7 @@
                             <div class="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-yellow-300 px-4 py-2.5 text-[14px] font-medium text-black">Oi! Quanto fica pra vitrificar meu Civic?</div>
                             <div class="w-fit max-w-[85%] rounded-2xl rounded-tl-md bg-white/[.06] px-4 py-2.5 text-[14px] text-zinc-200">Boa noite! A Vitrificação 9H sai R$ 1.890 e leva 1 dia. Tenho quinta às 8h livre — quer que eu reserve?</div>
                             <div class="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-md bg-yellow-300 px-4 py-2.5 text-[14px] font-medium text-black">Pode reservar 👍</div>
-                            <div class="w-fit max-w-[85%] rounded-2xl rounded-tl-md bg-white/[.06] px-4 py-2.5 text-[14px] text-zinc-200">Agendado ✅ Enviei a confirmação no seu WhatsApp.</div>
+                            <div class="w-fit max-w-[85%] rounded-2xl rounded-tl-md bg-white/[.06] px-4 py-2.5 text-[14px] text-zinc-200">Agendado ✅ Te vejo na quinta, 8h!</div>
                         </div>
                     </div>
                     <div class="grid gap-5">

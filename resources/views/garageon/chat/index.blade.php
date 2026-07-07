@@ -6,7 +6,7 @@
     <title>Chat WhatsApp - {{ $tenant->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#070707] text-white antialiased">
+<body class="marketing min-h-screen bg-[#070707] text-white antialiased">
     @php
         $quickActions = [
             ['label' => 'Dashboard', 'component' => 'tabler-layout-dashboard', 'href' => route('dashboard'), 'primary' => false],

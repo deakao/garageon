@@ -6,7 +6,7 @@
     <title>Landing Page - {{ $tenant->name }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-[#070707] text-white antialiased">
+<body class="marketing min-h-screen bg-[#070707] text-white antialiased">
     @php
         $landingValues = [
             'eyebrow' => old('eyebrow', $landingPage?->eyebrow ?? 'Estética automotiva premium'),
