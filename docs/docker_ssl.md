@@ -8,7 +8,7 @@ Rodar o GarageON em containers e permitir que cada dominio configurado na loja t
 
 Stack do compose:
 
-- `app`: PHP 8.3 FPM com extensoes Laravel;
+- `app`: PHP 8.4 FPM com extensoes Laravel;
 - `queue`: worker de filas Laravel;
 - `nginx`: borda HTTP/HTTPS;
 - `mysql`: banco MySQL 8.4;
