@@ -9,6 +9,7 @@
         "php": "^8.3",
         "laravel/ai": "^0.8",
         "laravel/framework": "^13.8",
+        "laravel/sail": "^1.63",
         "laravel/tinker": "^3.0",
         "secondnetwork/blade-tabler-icons": "^3.44"
     },
