@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Appointment extends Model
 {
@@ -43,6 +44,24 @@ class Appointment extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function serviceItems(): HasMany
+    {
+        return $this->hasMany(AppointmentService::class);
+    }
+
+    public function serviceSummary(): string
+    {
+        $items = $this->relationLoaded('serviceItems') ? $this->serviceItems : $this->serviceItems()->get();
+
+        if ($items->isNotEmpty()) {
+            return $items
+                ->map(fn (AppointmentService $item) => $item->quantity > 1 ? $item->name.' ('.$item->quantity.'x)' : $item->name)
+                ->join(' + ');
+        }
+
+        return $this->service?->name ?? 'Serviço removido';
     }
 
     public function vehicle(): BelongsTo

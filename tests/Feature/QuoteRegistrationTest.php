@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Mail\QuoteSharedMail;
 use App\Models\Quote;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WhatsappConnection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class QuoteRegistrationTest extends TestCase
@@ -92,6 +96,122 @@ class QuoteRegistrationTest extends TestCase
 
         $this->get(route('quotes.public', 'token-inexistente'))
             ->assertNotFound();
+    }
+
+    public function test_connected_evolution_sends_quote_whatsapp_from_show_page(): void
+    {
+        config([
+            'services.evolution_go.url' => 'https://evolution.test',
+            'services.evolution_go.api_key' => 'test-key',
+        ]);
+
+        Http::fake([
+            'https://evolution.test/send/text' => Http::response([
+                'data' => ['Info' => ['ID' => 'QUOTE-MSG-1']],
+                'message' => 'success',
+            ]),
+        ]);
+
+        [$tenant, $user, $serviceA] = $this->createTenantWithServices();
+
+        $this->actingAs($user)->post(route('quotes.store'), [
+            '_form' => 'quote',
+            'customer_name' => 'Marina Souza',
+            'customer_phone' => '(11) 98888-1234',
+            'vehicle_plate' => 'ABC1D23',
+            'vehicle_brand' => 'Toyota',
+            'vehicle_model' => 'Corolla',
+            'quoted_date' => now()->toDateString(),
+            'quoted_time' => '10:30',
+            'services' => [
+                ['service_id' => $serviceA->id, 'quantity' => 1],
+            ],
+        ]);
+
+        $quote = Quote::query()->where('tenant_id', $tenant->id)->with('customer')->firstOrFail();
+
+        WhatsappConnection::create([
+            'tenant_id' => $tenant->id,
+            'instance_name' => 'garageon-carbon',
+            'instance_id' => 'instance-1',
+            'instance_token' => 'instance-token',
+            'status' => 'connected',
+        ]);
+
+        $message = "Olá {$quote->customer->name}! Segue o orçamento da {$tenant->name}: {$quote->publicUrl()}";
+
+        $this->actingAs($user)
+            ->get(route('quotes.show', $quote))
+            ->assertOk()
+            ->assertSee('Enviar WhatsApp')
+            ->assertSee('name="return_to" value="back"', false)
+            ->assertDontSee('https://wa.me/?text', false);
+
+        $this->actingAs($user)
+            ->from(route('quotes.show', $quote))
+            ->post(route('chat.messages.store'), [
+                'customer_id' => $quote->customer_id,
+                'body' => $message,
+                'return_to' => 'back',
+            ])
+            ->assertRedirect(route('quotes.show', $quote))
+            ->assertSessionHas('status', 'Mensagem enviada pelo WhatsApp.');
+
+        $this->assertDatabaseHas('whatsapp_messages', [
+            'tenant_id' => $tenant->id,
+            'external_id' => 'QUOTE-MSG-1',
+            'body' => $message,
+            'status' => 'sent',
+        ]);
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://evolution.test/send/text'
+            && $request->hasHeader('apikey', 'instance-token')
+            && $request->hasHeader('instanceId', 'instance-1')
+            && $request['number'] === '5511988881234'
+            && $request['text'] === $message);
+    }
+
+    public function test_tenant_user_can_send_quote_by_email(): void
+    {
+        Mail::fake();
+
+        [$tenant, $user, $serviceA] = $this->createTenantWithServices();
+
+        $this->actingAs($user)->post(route('quotes.store'), [
+            '_form' => 'quote',
+            'customer_name' => 'Marina Souza',
+            'customer_phone' => '(11) 98888-1234',
+            'vehicle_plate' => 'ABC1D23',
+            'vehicle_brand' => 'Toyota',
+            'vehicle_model' => 'Corolla',
+            'quoted_date' => now()->toDateString(),
+            'quoted_time' => '10:30',
+            'services' => [
+                ['service_id' => $serviceA->id, 'quantity' => 1],
+            ],
+        ]);
+
+        $quote = Quote::query()->where('tenant_id', $tenant->id)->with('customer')->firstOrFail();
+        $quote->customer->update(['email' => 'marina@example.com']);
+
+        $this->actingAs($user)
+            ->get(route('quotes.show', $quote))
+            ->assertOk()
+            ->assertSee('Enviar e-mail')
+            ->assertSee(route('quotes.email', $quote), false);
+
+        $this->actingAs($user)
+            ->from(route('quotes.show', $quote))
+            ->post(route('quotes.email', $quote))
+            ->assertRedirect(route('quotes.show', $quote))
+            ->assertSessionHas('status', 'Orçamento enviado por e-mail.');
+
+        Mail::assertSent(QuoteSharedMail::class, function (QuoteSharedMail $mail) use ($quote, $tenant) {
+            $mail->assertSeeInHtml($quote->publicUrl());
+
+            return $mail->hasTo('marina@example.com')
+                && $mail->hasSubject('Orçamento #'.str_pad((string) $quote->id, 4, '0', STR_PAD_LEFT).' - '.$tenant->name);
+        });
     }
 
     public function test_tenant_cannot_view_quote_from_another_tenant(): void

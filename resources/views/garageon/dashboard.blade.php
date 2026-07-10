@@ -27,6 +27,7 @@
         $calendarAppointments = $dashboardStats['calendar_appointments'];
         $appointmentsByDate = $calendarAppointments->groupBy(fn ($appointment) => $appointment->scheduled_at->toDateString());
         $todayAgenda = $appointmentsByDate->get($today->toDateString(), collect());
+        $appointmentServiceRows = old('_form') === 'appointment' ? old('services', [['service_id' => '', 'quantity' => 1]]) : [['service_id' => '', 'quantity' => 1]];
         $firstName = explode(' ', trim(auth()->user()->name))[0] ?: auth()->user()->name;
         $quickActions = [
             ['label' => 'Dashboard', 'component' => 'tabler-layout-dashboard', 'href' => route('dashboard'), 'primary' => false],
@@ -76,15 +77,17 @@
             <div class="p-6 sm:p-8">
             <div class="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
                 <div>
-                    <p class="font-orbitron text-xs font-black uppercase tracking-[.28em] text-yellow-300">Novo agendamento</p>
-                    <h2 id="appointment-modal-title" class="mt-2 font-orbitron text-2xl font-black">Reservar horário</h2>
+                    <p data-appointment-eyebrow class="font-orbitron text-xs font-black uppercase tracking-[.28em] text-yellow-300">Novo agendamento</p>
+                    <h2 id="appointment-modal-title" data-appointment-title class="mt-2 font-orbitron text-2xl font-black">Reservar horário</h2>
                     <p data-appointment-readable-date class="mt-2 text-sm text-zinc-400">Selecione um dia na agenda.</p>
                 </div>
                 <button type="button" data-appointment-close class="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 text-xl text-zinc-300 transition hover:border-yellow-300 hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-300" aria-label="Fechar">×</button>
             </div>
 
-            <form method="POST" action="{{ route('appointments.store') }}" class="mt-6 grid gap-5">
+            <form method="POST" action="{{ route('appointments.store') }}" data-appointment-form class="mt-6 grid gap-5">
                 @csrf
+                <input type="hidden" name="_method" value="PUT" data-appointment-method disabled>
+                <input type="hidden" name="_form" value="appointment">
                 <input type="hidden" name="scheduled_date" data-appointment-date value="{{ old('scheduled_date', $today->toDateString()) }}">
 
                 <section data-vehicle-lookup data-vehicle-lookup-url="{{ route('vehicles.lookup') }}" class="rounded-3xl border border-yellow-300/15 bg-yellow-300/[.04] p-4">
@@ -145,29 +148,91 @@
 
                     <label class="block">
                         <span class="text-sm font-bold text-zinc-200">WhatsApp</span>
-                        <input name="customer_phone" value="{{ old('customer_phone') }}" required data-customer-phone class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30" placeholder="(11) 99999-9999">
+                        <input name="customer_phone" value="{{ old('customer_phone') }}" required data-customer-phone data-phone-mask class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30" placeholder="(11) 99999-9999">
                         @error('customer_phone') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
                     </label>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-[1fr_160px]">
-                    <label class="block">
-                        <span class="text-sm font-bold text-zinc-200">Serviço</span>
-                        <select name="service_id" required class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
-                            <option value="">Escolha o serviço</option>
-                            @foreach ($services as $service)
-                                <option value="{{ $service->id }}" @selected((int) old('service_id') === $service->id)>{{ $service->name }} · {{ $service->duration_minutes }} min</option>
-                            @endforeach
-                        </select>
-                        @error('service_id') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
-                    </label>
+                <section class="rounded-3xl border border-white/10 bg-black/25 p-4" data-quote-service-editor>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="font-orbitron text-xs font-black uppercase tracking-[.2em] text-yellow-300">Serviços do agendamento</p>
+                            <p class="mt-1 text-xs text-zinc-400">Adicione todos os serviços que vão ocupar esse horário.</p>
+                        </div>
+                        <button type="button" data-quote-service-add class="inline-flex items-center justify-center rounded-2xl border border-yellow-300/30 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                            Adicionar serviço
+                        </button>
+                    </div>
 
-                    <label class="block">
-                        <span class="text-sm font-bold text-zinc-200">Horário</span>
-                        <input type="time" name="scheduled_time" value="{{ old('scheduled_time', '09:00') }}" required data-appointment-time class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
-                        @error('scheduled_time') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
-                    </label>
-                </div>
+                    <div class="mt-4 space-y-3" data-quote-service-list>
+                        @foreach ($appointmentServiceRows as $index => $row)
+                            <div class="grid gap-3 rounded-2xl border border-white/10 bg-white/[.035] p-4 sm:grid-cols-[1fr_100px_auto] sm:items-end" data-quote-service-row>
+                                <label class="block">
+                                    <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Serviço</span>
+                                    <select name="services[{{ $index }}][service_id]" required data-quote-service-select class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                        <option value="">Escolha o serviço</option>
+                                        @foreach ($services as $service)
+                                            <option value="{{ $service->id }}" data-price="{{ $service->price }}" data-duration-minutes="{{ $service->duration_minutes }}" @selected((int) ($row['service_id'] ?? 0) === $service->id)>{{ $service->name }} · {{ $service->duration_minutes }} min</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Qtd.</span>
+                                    <input type="number" name="services[{{ $index }}][quantity]" value="{{ $row['quantity'] ?? 1 }}" min="1" max="99" required data-quote-service-qty class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                </label>
+
+                                <button type="button" data-quote-service-remove class="rounded-xl border border-red-300/25 px-3 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-300/10 focus:outline-none focus:ring-2 focus:ring-red-300" aria-label="Remover serviço">Remover</button>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    @error('services') <span class="mt-3 block text-xs text-red-300">{{ $message }}</span> @enderror
+                    @error('services.*.service_id') <span class="mt-3 block text-xs text-red-300">{{ $message }}</span> @enderror
+
+                    <div class="mt-4 flex items-center justify-between rounded-2xl border border-yellow-300/20 bg-yellow-300/[.06] px-4 py-3">
+                        <span class="text-sm font-bold text-zinc-200">Tempo estimado</span>
+                        <strong data-appointment-duration-preview class="font-orbitron text-xl font-black text-yellow-300">0 min</strong>
+                    </div>
+
+                    <template data-quote-service-template>
+                        <div class="grid gap-3 rounded-2xl border border-white/10 bg-white/[.035] p-4 sm:grid-cols-[1fr_100px_auto] sm:items-end" data-quote-service-row>
+                            <label class="block">
+                                <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Serviço</span>
+                                <select name="services[__INDEX__][service_id]" required data-quote-service-select class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                    <option value="">Escolha o serviço</option>
+                                    @foreach ($services as $service)
+                                        <option value="{{ $service->id }}" data-price="{{ $service->price }}" data-duration-minutes="{{ $service->duration_minutes }}">{{ $service->name }} · {{ $service->duration_minutes }} min</option>
+                                    @endforeach
+                                </select>
+                            </label>
+
+                            <label class="block">
+                                <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Qtd.</span>
+                                <input type="number" name="services[__INDEX__][quantity]" value="1" min="1" max="99" required data-quote-service-qty class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                            </label>
+
+                            <button type="button" data-quote-service-remove class="rounded-xl border border-red-300/25 px-3 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-300/10 focus:outline-none focus:ring-2 focus:ring-red-300" aria-label="Remover serviço">Remover</button>
+                        </div>
+                    </template>
+                </section>
+
+                <label class="block">
+                    <span class="text-sm font-bold text-zinc-200">Horário</span>
+                    <input type="time" name="scheduled_time" value="{{ old('scheduled_time', '09:00') }}" required data-appointment-time class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                    @error('scheduled_time') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                </label>
+
+                <label data-appointment-status-field class="hidden">
+                    <span class="text-sm font-bold text-zinc-200">Status</span>
+                    <select name="status" data-appointment-status class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                        <option value="pending">Pendente</option>
+                        <option value="scheduled" selected>Agendado</option>
+                        <option value="completed">Concluído</option>
+                        <option value="cancelled">Cancelado</option>
+                    </select>
+                    @error('status') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                </label>
 
                 <label class="block">
                     <span class="text-sm font-bold text-zinc-200">Observações</span>
@@ -181,7 +246,7 @@
 
                 <div class="flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
                     <button type="button" data-appointment-close class="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/25 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-300">Cancelar</button>
-                    <button type="submit" @disabled($services->isEmpty()) class="rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-300/20 focus:outline-none focus:ring-2 focus:ring-yellow-300 disabled:cursor-not-allowed disabled:opacity-50">Salvar agendamento</button>
+                    <button type="submit" data-appointment-submit @disabled($services->isEmpty()) class="rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-300/20 focus:outline-none focus:ring-2 focus:ring-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">Salvar agendamento</button>
                 </div>
             </form>
             </div>
@@ -191,10 +256,21 @@
 
     <script>
         const appointmentModal = document.querySelector('[data-appointment-modal]');
+        const appointmentForm = document.querySelector('[data-appointment-form]');
+        const appointmentMethodInput = document.querySelector('[data-appointment-method]');
         const appointmentDateInput = document.querySelector('[data-appointment-date]');
         const appointmentTimeInput = document.querySelector('[data-appointment-time]');
         const appointmentReadableDate = document.querySelector('[data-appointment-readable-date]');
-        const appointmentShouldOpen = @json($errors->any() && old('_form') !== 'sale');
+        const appointmentStatusField = document.querySelector('[data-appointment-status-field]');
+        const appointmentStatusInput = document.querySelector('[data-appointment-status]');
+        const appointmentEyebrow = document.querySelector('[data-appointment-eyebrow]');
+        const appointmentTitle = document.querySelector('[data-appointment-title]');
+        const appointmentSubmit = document.querySelector('[data-appointment-submit]');
+        const appointmentServiceList = document.querySelector('[data-appointment-modal] [data-quote-service-list]');
+        const appointmentServiceTemplate = document.querySelector('[data-appointment-modal] [data-quote-service-template]');
+        const appointmentStoreUrl = @json(route('appointments.store'));
+        const defaultAppointmentServices = @json($appointmentServiceRows);
+        const appointmentShouldOpen = @json($errors->any() && old('_form') === 'appointment');
 
         const formatAppointmentDate = (date) => {
             const parsed = new Date(`${date}T00:00:00`);
@@ -207,9 +283,63 @@
             });
         };
 
-        const openAppointmentModal = (date, time = null) => {
+        const setAppointmentValue = (name, value) => {
+            const field = appointmentForm?.querySelector(`[name="${name}"]`);
+
+            if (field) {
+                field.value = value ?? '';
+            }
+        };
+
+        const setAppointmentServices = (services) => {
+            if (! appointmentServiceList || ! appointmentServiceTemplate) {
+                return;
+            }
+
+            const rows = services?.length ? services : [{ service_id: '', quantity: 1 }];
+            appointmentServiceList.innerHTML = rows.map((_, index) => appointmentServiceTemplate.innerHTML.replaceAll('__INDEX__', index)).join('');
+
+            appointmentServiceList.querySelectorAll('[data-quote-service-row]').forEach((row, index) => {
+                row.querySelector('[data-quote-service-select]').value = rows[index]?.service_id ?? '';
+                row.querySelector('[data-quote-service-qty]').value = rows[index]?.quantity ?? 1;
+            });
+
+            appointmentServiceList.querySelector('[data-quote-service-select]')?.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        const setAppointmentCreateMode = (reset = true) => {
+            if (! appointmentForm) {
+                return;
+            }
+
+            appointmentForm.action = appointmentStoreUrl;
+            appointmentMethodInput.disabled = true;
+            appointmentStatusField?.classList.add('hidden');
+            appointmentStatusInput.value = 'scheduled';
+            appointmentEyebrow.textContent = 'Novo agendamento';
+            appointmentTitle.textContent = 'Reservar horário';
+            appointmentSubmit.textContent = 'Salvar agendamento';
+
+            if (reset) {
+                appointmentForm.reset();
+                setAppointmentServices(defaultAppointmentServices);
+            }
+        };
+
+        const showAppointmentModal = () => {
+            appointmentModal.classList.remove('hidden');
+            appointmentModal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+            appointmentModal.querySelector('input[name="customer_name"]')?.focus();
+        };
+
+        const openAppointmentModal = (date, time = null, reset = true) => {
             if (! appointmentModal) {
                 return;
+            }
+
+            if (reset) {
+                setAppointmentCreateMode();
             }
 
             appointmentDateInput.value = date;
@@ -220,10 +350,41 @@
 
             const timeLabel = time ? ` às ${time}` : '';
             appointmentReadableDate.textContent = `Novo horário para ${formatAppointmentDate(date)}${timeLabel}`;
-            appointmentModal.classList.remove('hidden');
-            appointmentModal.classList.add('flex');
-            document.body.classList.add('overflow-hidden');
-            appointmentModal.querySelector('input[name="customer_name"]')?.focus();
+            showAppointmentModal();
+        };
+
+        const openAppointmentEditModal = (button) => {
+            if (! appointmentModal || ! appointmentForm) {
+                return;
+            }
+
+            appointmentForm.action = button.dataset.updateUrl;
+            appointmentMethodInput.disabled = false;
+            appointmentStatusField?.classList.remove('hidden');
+            appointmentEyebrow.textContent = 'Editar agendamento';
+            appointmentTitle.textContent = 'Ajustar horário';
+            appointmentSubmit.textContent = 'Salvar alterações';
+
+            setAppointmentValue('customer_name', button.dataset.customerName);
+            setAppointmentValue('customer_phone', button.dataset.customerPhone);
+            setAppointmentValue('vehicle_plate', button.dataset.vehiclePlate);
+            setAppointmentValue('vehicle_brand', button.dataset.vehicleBrand);
+            setAppointmentValue('vehicle_model', button.dataset.vehicleModel);
+            setAppointmentValue('vehicle_year', button.dataset.vehicleYear);
+            setAppointmentValue('vehicle_color', button.dataset.vehicleColor);
+            setAppointmentValue('scheduled_time', button.dataset.scheduledTime);
+            setAppointmentValue('notes', button.dataset.notes);
+            appointmentDateInput.value = button.dataset.scheduledDate;
+            appointmentStatusInput.value = button.dataset.status || 'scheduled';
+
+            try {
+                setAppointmentServices(JSON.parse(button.dataset.services || '[]'));
+            } catch (error) {
+                setAppointmentServices([]);
+            }
+
+            appointmentReadableDate.textContent = `Editando horário de ${formatAppointmentDate(button.dataset.scheduledDate)} às ${button.dataset.scheduledTime}`;
+            showAppointmentModal();
         };
 
         if (appointmentDateInput?.value) {
@@ -231,8 +392,29 @@
         }
 
         if (appointmentShouldOpen && appointmentDateInput?.value) {
-            openAppointmentModal(appointmentDateInput.value);
+            openAppointmentModal(appointmentDateInput.value, null, false);
         }
+
+        document.querySelectorAll('[data-overlay-open="appointment-modal"]').forEach((button) => {
+            button.addEventListener('click', () => setAppointmentCreateMode());
+        });
+
+        document.addEventListener('click', (event) => {
+            const editButton = event.target.closest('[data-appointment-edit]');
+
+            if (editButton) {
+                event.preventDefault();
+                openAppointmentEditModal(editButton);
+            }
+        });
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target.closest('[data-confirm]');
+
+            if (form && ! window.confirm(form.dataset.confirm)) {
+                event.preventDefault();
+            }
+        });
 
         document.querySelectorAll('[data-calendar-dashboard]').forEach((calendar) => {
             const panels = calendar.querySelectorAll('[data-calendar-panel]');

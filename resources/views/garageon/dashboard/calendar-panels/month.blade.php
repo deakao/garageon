@@ -17,7 +17,8 @@
             <span class="font-orbitron text-sm font-black">{{ $day }}</span>
             @if ($dayAppointments->isNotEmpty())
                 <span class="mt-2 block truncate rounded-full {{ $isToday ? 'bg-black/15 text-black' : 'bg-yellow-300/15 text-yellow-300' }} px-2 py-1 text-[11px] font-black">{{ $dayAppointments->count() }} agenda{{ $dayAppointments->count() > 1 ? 's' : '' }}</span>
-                <span class="mt-1 block truncate text-[11px] {{ $isToday ? 'text-black/70' : 'text-zinc-400' }}">{{ $dayAppointments->first()->service->name }}</span>
+                <span class="mt-1 block truncate text-[11px] {{ $isToday ? 'text-black/70' : 'text-zinc-400' }}">{{ $dayAppointments->first()->serviceSummary() }}</span>
+                <span class="mt-1 block truncate text-[11px] {{ $isToday ? 'text-black/70' : 'text-zinc-500' }}">{{ number_format((int) ($dayAppointments->first()->customer->loyalty_points ?? 0), 0, ',', '.') }} pts</span>
             @endif
         </button>
     @endfor

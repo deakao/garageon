@@ -13,6 +13,8 @@ Ela deve permitir que cada tenant publique uma vitrine com:
 - SEO basico;
 - scripts de analytics, pixel e JavaScript personalizado;
 - categorias e servicos cadastrados no cockpit;
+- depoimentos editaveis;
+- FAB de WhatsApp com captura de lead;
 - agendamento publico com calendario e horarios disponiveis.
 
 ## Rotas
@@ -21,8 +23,10 @@ Ela deve permitir que cada tenant publique uma vitrine com:
 - Atualizacao interna: `PUT /configuracoes/landing-page`
 - Landing publica: `GET /loja/{tenant:slug}`
 - Agendamento publico pela landing: `POST /loja/{tenant:slug}/agendar`
+- Lead WhatsApp pela landing: `POST /loja/{tenant:slug}/whatsapp-lead`
 - Landing por dominio proprio: `GET /` quando o host corresponde a `tenants.primary_domain`
 - Agendamento por dominio proprio: `POST /agendar` quando o host corresponde a `tenants.primary_domain`
+- Lead WhatsApp por dominio proprio: `POST /whatsapp-lead` quando o host corresponde a `tenants.primary_domain`
 
 Nomes de rota principais:
 
@@ -30,7 +34,9 @@ Nomes de rota principais:
 - `settings.landing.update`
 - `storefront`
 - `storefront.booking.store`
+- `storefront.whatsapp-lead.store`
 - `storefront.custom.booking.store`
+- `storefront.custom.whatsapp-lead.store`
 
 ## Arquivos Principais
 
@@ -55,6 +61,7 @@ Campos principais:
 - `hero_badge_title`: titulo do card/selo sobre a imagem.
 - `hero_badge_body`: descricao do card/selo.
 - `cta_label`: texto do CTA principal.
+- `testimonials`: lista JSON de depoimentos exibidos na landing publica.
 - `seo_title`: titulo usado em `<title>` e Open Graph.
 - `seo_description`: meta description e Open Graph description.
 - `seo_keywords`: keywords.
@@ -62,6 +69,22 @@ Campos principais:
 - `conversion_pixel`: tags inseridas apos abrir o `<body>`.
 - `custom_javascript`: scripts inseridos antes de fechar o `<body>`.
 - `published_at`: indica publicacao.
+
+### Depoimentos
+
+Cada item de `testimonials` aceita:
+
+- `name`: nome do cliente (obrigatorio para publicar o card);
+- `role`: cargo, veiculo ou contexto (opcional);
+- `quote`: texto do depoimento (obrigatorio para publicar o card);
+- `rating`: nota de 1 a 5 (padrao 5).
+
+Regras:
+
+- ate 12 depoimentos por loja;
+- itens sem `name` ou `quote` sao ignorados no save e na pagina publica;
+- a secao `#depoimentos` so aparece quando houver ao menos um depoimento valido;
+- o menu superior inclui o link `Depoimentos` apenas quando a secao estiver visivel.
 
 ## Fonte Das Secoes Da Vitrine
 
@@ -128,6 +151,26 @@ Regras:
 - salva em `storage/app/public/tenants/{tenant_id}/services`;
 - ao substituir a thumbnail, remove o arquivo antigo;
 - a landing usa `Service::thumbnailUrl()` quando existir.
+
+## FAB De WhatsApp E Captura De Lead
+
+Quando `tenants.whatsapp_phone` estiver preenchido, a landing publica exibe um FAB verde no canto inferior direito.
+
+Fluxo:
+
+1. o visitante clica no FAB;
+2. abre um balao com visual inspirado no WhatsApp;
+3. o visitante informa nome, e-mail e telefone;
+4. o backend cria ou atualiza o `Customer` do tenant com tags `lead` e `landing-whatsapp`;
+5. a resposta JSON devolve a URL `https://wa.me/{telefone_da_loja}?text=...`;
+6. o frontend redireciona o visitante para o WhatsApp.
+
+Regras:
+
+- sem `whatsapp_phone` da loja, o FAB nao aparece;
+- telefone do lead e normalizado com DDI 55 para validacao;
+- se o telefone ja existir na base do tenant, o cliente e atualizado e as tags de lead sao mescladas;
+- a mensagem pre-preenchida identifica a origem pela landing page.
 
 ## Agendamento Publico Pela Landing
 
@@ -270,9 +313,13 @@ Coberturas esperadas:
 
 - link para editar landing no dashboard;
 - atualizacao da configuracao da landing;
+- persistencia e renderizacao de depoimentos;
+- omissao de depoimentos incompletos;
 - renderizacao de SEO e scripts;
 - renderizacao de categorias e servicos ativos;
 - omissao de servicos inativos;
+- FAB de WhatsApp com captura de lead;
+- ocultacao do FAB sem telefone da loja;
 - exibicao do modal de agendamento;
 - criacao de agendamento publico pela landing;
 - bloqueio de horario ja ocupado.

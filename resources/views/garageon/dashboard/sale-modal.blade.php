@@ -2,6 +2,7 @@
     $cockpitServices = ($services ?? null) ?? $tenant->services()->where('is_active', true)->orderBy('name')->get();
     $cockpitNow = now();
     $saleShouldOpen = old('_form') === 'sale' && $errors->any();
+    $saleServiceRows = old('_form') === 'sale' ? old('services', [['service_id' => '', 'quantity' => 1]]) : [['service_id' => '', 'quantity' => 1]];
     $paymentMethods = [
         'debito' => 'Débito',
         'credito' => 'Crédito',
@@ -108,16 +109,81 @@
                         </label>
                     </div>
 
-                    <label class="block">
-                        <span class="text-sm font-bold text-zinc-200">Serviço</span>
-                        <select name="service_id" required data-sale-service-select class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
-                            <option value="">Escolha o serviço</option>
-                            @foreach ($cockpitServices as $service)
-                                <option value="{{ $service->id }}" data-price="{{ $service->price }}" @selected((int) old('service_id') === $service->id)>{{ $service->name }} · R$ {{ number_format((float) $service->price, 2, ',', '.') }}</option>
+                    <section class="rounded-3xl border border-yellow-300/15 bg-yellow-300/[.04] p-4">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p class="font-orbitron text-xs font-black uppercase tracking-[.2em] text-yellow-300">Usar pontos</p>
+                                <p class="mt-1 text-xs leading-5 text-zinc-400">Debite pontos do saldo do cliente nesta venda.</p>
+                            </div>
+                            <p data-sale-loyalty-balance class="text-xs font-bold text-zinc-400">Busque a placa para ver o saldo.</p>
+                        </div>
+
+                        <label class="mt-4 block">
+                            <span class="text-sm font-bold text-zinc-200">Pontos a debitar</span>
+                            <input type="number" name="loyalty_points_to_debit" value="{{ old('loyalty_points_to_debit', 0) }}" min="0" step="1" data-sale-loyalty-debit class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30" placeholder="0">
+                            @error('loyalty_points_to_debit') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                        </label>
+                    </section>
+
+                    <section class="rounded-3xl border border-white/10 bg-black/25 p-4" data-quote-service-editor data-sale-service-editor>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p class="font-orbitron text-xs font-black uppercase tracking-[.2em] text-yellow-300">Serviços da venda</p>
+                                <p class="mt-1 text-xs text-zinc-400">Adicione todos os serviços vendidos para calcular valor e pontos.</p>
+                            </div>
+                            <button type="button" data-quote-service-add class="inline-flex items-center justify-center rounded-2xl border border-yellow-300/30 px-4 py-2 text-xs font-black uppercase tracking-[.14em] text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                                Adicionar serviço
+                            </button>
+                        </div>
+
+                        <div class="mt-4 space-y-3" data-quote-service-list>
+                            @foreach ($saleServiceRows as $index => $row)
+                                <div class="grid gap-3 rounded-2xl border border-white/10 bg-white/[.035] p-4 sm:grid-cols-[1fr_100px_auto] sm:items-end" data-quote-service-row>
+                                    <label class="block">
+                                        <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Serviço</span>
+                                        <select name="services[{{ $index }}][service_id]" required data-quote-service-select class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                            <option value="">Escolha o serviço</option>
+                                            @foreach ($cockpitServices as $service)
+                                                <option value="{{ $service->id }}" data-price="{{ $service->price }}" data-loyalty-points="{{ (int) $service->loyalty_points }}" @selected((int) ($row['service_id'] ?? 0) === $service->id)>{{ $service->name }} · R$ {{ number_format((float) $service->price, 2, ',', '.') }} · +{{ (int) $service->loyalty_points }} pts</option>
+                                            @endforeach
+                                        </select>
+                                    </label>
+
+                                    <label class="block">
+                                        <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Qtd.</span>
+                                        <input type="number" name="services[{{ $index }}][quantity]" value="{{ $row['quantity'] ?? 1 }}" min="1" max="99" required data-quote-service-qty class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                    </label>
+
+                                    <button type="button" data-quote-service-remove class="rounded-xl border border-red-300/25 px-3 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-300/10 focus:outline-none focus:ring-2 focus:ring-red-300" aria-label="Remover serviço">Remover</button>
+                                </div>
                             @endforeach
-                        </select>
-                        @error('service_id') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
-                    </label>
+                        </div>
+
+                        @error('services') <span class="mt-3 block text-xs text-red-300">{{ $message }}</span> @enderror
+                        @error('services.*.service_id') <span class="mt-3 block text-xs text-red-300">{{ $message }}</span> @enderror
+                        <span data-sale-loyalty-preview class="mt-3 block text-xs font-bold text-yellow-200">Escolha um serviço para ver os pontos da venda.</span>
+
+                        <template data-quote-service-template>
+                            <div class="grid gap-3 rounded-2xl border border-white/10 bg-white/[.035] p-4 sm:grid-cols-[1fr_100px_auto] sm:items-end" data-quote-service-row>
+                                <label class="block">
+                                    <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Serviço</span>
+                                    <select name="services[__INDEX__][service_id]" required data-quote-service-select class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                        <option value="">Escolha o serviço</option>
+                                        @foreach ($cockpitServices as $service)
+                                            <option value="{{ $service->id }}" data-price="{{ $service->price }}" data-loyalty-points="{{ (int) $service->loyalty_points }}">{{ $service->name }} · R$ {{ number_format((float) $service->price, 2, ',', '.') }} · +{{ (int) $service->loyalty_points }} pts</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-xs font-black uppercase tracking-[.14em] text-zinc-400">Qtd.</span>
+                                    <input type="number" name="services[__INDEX__][quantity]" value="1" min="1" max="99" required data-quote-service-qty class="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                </label>
+
+                                <button type="button" data-quote-service-remove class="rounded-xl border border-red-300/25 px-3 py-2.5 text-sm font-black text-red-200 transition hover:bg-red-300/10 focus:outline-none focus:ring-2 focus:ring-red-300" aria-label="Remover serviço">Remover</button>
+                            </div>
+                        </template>
+                    </section>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <label class="block">

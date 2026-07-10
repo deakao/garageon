@@ -10,6 +10,7 @@ use App\Models\OrderBump;
 use App\Models\Plan;
 use App\Models\PostSaleAutomation;
 use App\Models\Quote;
+use App\Models\QuoteFunnelAutomation;
 use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -111,6 +112,7 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Pré-lavagem, descontaminação leve e acabamento com proteção rápida.',
                 'duration_minutes' => 90,
                 'price' => 149,
+                'loyalty_points' => 15,
                 'lifecycle_days' => 30,
                 'category' => 'Lavagem',
             ]);
@@ -122,6 +124,7 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Correção de pintura, preparação e coating cerâmico com plano de manutenção.',
                 'duration_minutes' => 480,
                 'price' => 1890,
+                'loyalty_points' => 190,
                 'lifecycle_days' => 120,
                 'category' => 'Proteção',
             ]);
@@ -133,6 +136,7 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Realce de brilho para veículos de venda ou eventos.',
                 'duration_minutes' => 240,
                 'price' => 690,
+                'loyalty_points' => 70,
                 'lifecycle_days' => 90,
                 'category' => 'Pintura',
             ]);
@@ -211,6 +215,17 @@ class DatabaseSeeder extends Seeder
                 'trigger_after_days' => 120,
             ]);
 
+            QuoteFunnelAutomation::query()
+                ->where('tenant_id', $tenant->id)
+                ->delete();
+
+            foreach (QuoteFunnelAutomation::seedBlueprints() as $blueprint) {
+                QuoteFunnelAutomation::query()->create([
+                    'tenant_id' => $tenant->id,
+                    ...$blueprint,
+                ]);
+            }
+
             Subscription::create([
                 'tenant_id' => $tenant->id,
                 'customer_id' => $customers[1]->id,
@@ -263,6 +278,26 @@ class DatabaseSeeder extends Seeder
                 'cta_label' => 'Orçamento Grátis',
                 'seo_title' => 'Estética automotiva premium com agendamento online',
                 'seo_description' => 'Lavagem técnica, vitrificação e proteção premium para carros exigentes.',
+                'testimonials' => [
+                    [
+                        'name' => 'Marcos T.',
+                        'role' => 'Cliente desde 2023',
+                        'quote' => 'O carro saiu com brilho de showroom. Atendimento rápido e cuidado em cada detalhe.',
+                        'rating' => 5,
+                    ],
+                    [
+                        'name' => 'Renata C.',
+                        'role' => 'SUV premium',
+                        'quote' => 'Agendei pela landing, fui atendida no horário e o resultado da vitrificação ficou impecável.',
+                        'rating' => 5,
+                    ],
+                    [
+                        'name' => 'Igor M.',
+                        'role' => 'Cliente recorrente',
+                        'quote' => 'Viraram minha oficina de confiança. Sempre saio com o carro pronto para a semana.',
+                        'rating' => 5,
+                    ],
+                ],
                 'published_at' => now(),
             ]);
         });

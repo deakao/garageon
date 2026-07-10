@@ -29,7 +29,7 @@
     @error('description') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
 </label>
 
-<div class="grid gap-4 sm:grid-cols-3">
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <label class="block">
         <span class="text-sm font-bold text-zinc-200">Duração</span>
         <input type="number" name="duration_minutes" min="15" step="15" value="{{ old('duration_minutes', $service?->duration_minutes ?? 60) }}" required class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
@@ -40,6 +40,13 @@
         <span class="text-sm font-bold text-zinc-200">Preço</span>
         <input type="number" name="price" min="0" step="0.01" value="{{ old('price', $service?->price ?? 0) }}" required class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
         @error('price') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+    </label>
+
+    <label class="block">
+        <span class="text-sm font-bold text-zinc-200">Pontos</span>
+        <input type="number" name="loyalty_points" min="0" step="1" value="{{ old('loyalty_points', $service?->loyalty_points ?? 0) }}" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+        <span class="mt-2 block text-xs leading-5 text-zinc-500">Saldo que o cliente ganha ao agendar esse serviço.</span>
+        @error('loyalty_points') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
     </label>
 
     <label class="block">

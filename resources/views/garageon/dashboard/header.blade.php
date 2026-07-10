@@ -11,6 +11,7 @@
     $settingsLinks = [
         ['label' => 'Empresa', 'route' => 'settings.company', 'component' => 'tabler-building-store'],
         ['label' => 'Atendente virtual', 'route' => 'settings.attendant', 'component' => 'tabler-robot'],
+        ['label' => 'Funil de orçamentos', 'route' => 'settings.quote-funnel', 'component' => 'tabler-layout-kanban'],
         ['label' => 'Serviços', 'route' => 'settings.services', 'component' => 'tabler-list-check'],
         ['label' => 'Horários', 'route' => 'settings.hours', 'component' => 'tabler-clock'],
         ['label' => 'Landing page', 'route' => 'settings.landing', 'component' => 'tabler-world-www'],

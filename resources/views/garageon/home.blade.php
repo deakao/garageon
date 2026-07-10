@@ -164,8 +164,15 @@
             0%, 100% { transform: translate3d(0,0,0) scale(1); }
             50% { transform: translate3d(0,-14px,0) scale(1.04); }
         }
+
+        @@keyframes scan-line {
+            0% { transform: translateY(-110%); opacity: 0; }
+            18%, 82% { opacity: .65; }
+            100% { transform: translateY(610%); opacity: 0; }
+        }
         @@media (prefers-reduced-motion: no-preference) {
             .drift { animation: drift 9s ease-in-out infinite; }
+            .scan-line { animation: scan-line 5.5s ease-in-out infinite; }
         }
     </style>
 </head>
@@ -192,24 +199,29 @@
         </header>
 
         {{-- HERO --}}
-        <section class="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden px-6 py-28 text-center" aria-labelledby="hero-title">
-            <div class="pointer-events-none absolute inset-0 -z-10">
-                <div class="drift absolute left-1/2 top-[-10%] size-[70vw] max-w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,.12),transparent_60%)] blur-2xl"></div>
-                <div class="absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_120%,rgba(255,255,255,.05),transparent_60%)]"></div>
+        <section class="relative isolate flex min-h-[92vh] flex-col items-center overflow-hidden px-6 pb-16 pt-24 text-center md:pt-28" aria-labelledby="hero-title">
+            <div class="pointer-events-none absolute inset-0 z-0">
+                <div class="absolute inset-0 bg-cover opacity-90 md:hidden" style="background-image: url('{{ asset('img/bg-mobile.png') }}'); background-position: center bottom;"></div>
+                <div class="absolute inset-0 hidden bg-cover opacity-90 md:block" style="background-image: url('{{ asset('img/bg.png') }}'); background-position: center bottom; background-size: cover;"></div>
+                <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.34),rgba(0,0,0,.50)_44%,rgba(0,0,0,.88)_76%,#000_100%),radial-gradient(circle_at_50%_30%,rgba(0,0,0,.22),rgba(0,0,0,.52)_64%)]"></div>
+                <div class="drift absolute left-1/2 top-[-18%] size-[86vw] max-w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(250,204,21,.16),transparent_62%)] blur-2xl"></div>
+                <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(to_bottom,black,transparent_78%)]"></div>
+                <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-yellow-300/50 to-transparent"></div>
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_112%,rgba(255,255,255,.08),transparent_62%)]"></div>
             </div>
-            <div data-reveal class="mx-auto max-w-4xl">
-                <p class="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-1.5 text-[12px] font-medium tracking-wide text-zinc-300">
+            <div data-reveal class="relative z-10 mx-auto max-w-5xl">
+                <p class="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-1.5 text-[12px] font-medium tracking-wide text-zinc-300 shadow-[0_0_40px_rgba(250,204,21,.08)]">
                     <span class="size-1.5 rounded-full bg-yellow-300"></span>
-                    Teste grátis por {{ $trialDays }} dias · sem cartão
+                    IA no WhatsApp · agenda 24/7 · teste grátis por {{ $trialDays }} dias
                 </p>
-                <h1 id="hero-title" class="title-orbitron text-balance text-5xl leading-[1.04] text-white md:text-7xl xl:text-[5.5rem]">
-                    Sua estética automotiva vendendo no automático.
+                <h1 id="hero-title" class="title-orbitron text-balance text-5xl leading-[1.02] text-white md:text-7xl xl:text-[5.8rem]">
+                    O cockpit que mantém sua estética automotiva sempre ON.
                 </h1>
-                <p class="mx-auto mt-7 max-w-2xl text-balance text-xl font-normal leading-8 text-zinc-400">
-                    A GarageON responde seus clientes no WhatsApp com IA, enche sua agenda, recupera clientes e organiza as vendas em um único cockpit. Crie sua conta e comece hoje, sem falar com ninguém.
+                <p class="mx-auto mt-7 max-w-3xl text-balance text-xl font-normal leading-8 text-zinc-400">
+                    A GarageON atende leads, agenda serviços, recupera clientes e mostra onde agir primeiro. Menos improviso no WhatsApp. Mais carros entrando no box.
                 </p>
                 <div class="mt-10 flex flex-col items-center justify-center gap-x-8 gap-y-4 sm:flex-row">
-                    <a href="{{ $primaryCta }}" class="w-full rounded-full bg-yellow-300 px-8 py-3.5 text-center text-[15px] font-semibold text-black transition hover:bg-yellow-200 sm:w-auto">
+                    <a href="{{ $primaryCta }}" class="w-full rounded-full bg-yellow-300 px-8 py-3.5 text-center text-[15px] font-semibold text-black shadow-[0_0_38px_rgba(250,204,21,.22)] transition hover:bg-yellow-200 sm:w-auto">
                         Criar minha conta grátis
                     </a>
                     <a href="#planos" class="group inline-flex items-center gap-1.5 text-[15px] font-medium text-white transition hover:text-yellow-200">
@@ -220,37 +232,69 @@
             </div>
 
             {{-- Mockup do cockpit (bloco bento grande) --}}
-            <div class="mt-20 w-full max-w-4xl" data-reveal>
-                <div class="rounded-[32px] border border-white/[.08] bg-gradient-to-b from-[#141414] to-[#0b0b0b] p-3 shadow-[0_60px_160px_-50px_rgba(0,0,0,.95)]">
-                    <div class="rounded-[24px] border border-white/[.06] bg-[#0a0a0a] p-6 text-left md:p-8">
-                        <div class="flex items-center justify-between border-b border-white/[.06] pb-5">
-                            <div>
-                                <p class="text-[12px] font-medium text-zinc-500">Cockpit comercial</p>
-                                <h2 class="mt-1.5 text-lg font-semibold tracking-[-0.01em] text-white">Sua empresa acordou melhor do que ontem.</h2>
+            <div class="relative z-10 mt-16 w-full max-w-6xl" data-reveal>
+                <div class="relative rounded-[34px] border border-white/[.08] bg-gradient-to-b from-[#171717] to-[#070707] p-2 shadow-[0_44px_120px_-64px_rgba(0,0,0,.95)] md:p-3">
+                    <div class="pointer-events-none absolute -inset-px rounded-[34px] bg-[linear-gradient(120deg,transparent,rgba(250,204,21,.25),transparent)] opacity-60"></div>
+                    <div class="relative overflow-hidden rounded-[26px] border border-white/[.06] bg-[#080808] text-left">
+                        <div class="scan-line pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-yellow-300/0 via-yellow-300/10 to-yellow-300/0"></div>
+                        <div class="grid gap-0 lg:grid-cols-[1fr_.72fr]">
+                            <div class="p-5 md:p-8">
+                                <div class="flex items-center justify-between border-b border-white/[.06] pb-5">
+                                    <div>
+                                        <p class="text-[12px] font-medium text-zinc-500">Cockpit comercial</p>
+                                        <h2 class="mt-1.5 text-lg font-semibold tracking-[-0.01em] text-white">Hoje, sua operação já acordou vendendo.</h2>
+                                    </div>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-yellow-300/25 bg-yellow-300/[.06] px-3 py-1 text-[11px] font-medium text-yellow-100"><span class="size-1.5 rounded-full bg-yellow-300"></span>ON 24h</span>
+                                </div>
+                                <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                                    <article class="rounded-2xl border border-white/[.06] bg-white/[.025] p-5">
+                                        <p class="text-[13px] text-zinc-500">Leads atendidos</p>
+                                        <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">412</strong>
+                                    </article>
+                                    <article class="rounded-2xl border border-white/[.06] bg-white/[.025] p-5">
+                                        <p class="text-[13px] text-zinc-500">Agenda ocupada</p>
+                                        <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">82%</strong>
+                                        <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><div class="h-full w-[82%] rounded-full bg-yellow-300"></div></div>
+                                    </article>
+                                    <article class="rounded-2xl border border-white/[.06] bg-white/[.025] p-5">
+                                        <p class="text-[13px] text-zinc-500">Clientes recuperados</p>
+                                        <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">18</strong>
+                                    </article>
+                                </div>
+                                <div class="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/[.06] p-5">
+                                    <div>
+                                        <p class="text-[13px] font-medium text-yellow-200/90">Oportunidade para hoje</p>
+                                        <strong class="mt-1 block text-xl font-semibold tracking-[-0.01em] text-white">R$ 8,4k em propostas quentes</strong>
+                                    </div>
+                                    <span class="hidden shrink-0 rounded-full bg-yellow-300 px-4 py-2 text-[13px] font-semibold text-black sm:block">Agir agora</span>
+                                </div>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-zinc-300"><span class="size-1.5 rounded-full bg-emerald-400"></span>ON 24h</span>
-                        </div>
-                        <div class="mt-6 grid gap-3 sm:grid-cols-3">
-                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
-                                <p class="text-[13px] text-zinc-500">Mensagens respondidas</p>
-                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">412</strong>
-                            </article>
-                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
-                                <p class="text-[13px] text-zinc-500">Agenda preenchida</p>
-                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">82%</strong>
-                                <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><div class="h-full w-[82%] rounded-full bg-yellow-300"></div></div>
-                            </article>
-                            <article class="rounded-2xl border border-white/[.06] bg-white/[.02] p-5">
-                                <p class="text-[13px] text-zinc-500">Clientes recuperados</p>
-                                <strong class="mt-2 block text-3xl font-semibold tracking-[-0.02em] text-white">18</strong>
-                            </article>
-                        </div>
-                        <div class="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/[.06] p-5">
-                            <div>
-                                <p class="text-[13px] font-medium text-yellow-200/90">Oportunidade para hoje</p>
-                                <strong class="mt-1 block text-xl font-semibold tracking-[-0.01em] text-white">R$ 8,4k em propostas quentes</strong>
+                            <div class="border-t border-white/[.06] bg-[radial-gradient(circle_at_50%_0%,rgba(250,204,21,.14),transparent_42%)] p-5 md:p-8 lg:border-l lg:border-t-0">
+                                <p class="text-[12px] font-medium text-zinc-500">Fluxo ao vivo</p>
+                                <div class="mt-5 space-y-3">
+                                    <div class="rounded-2xl border border-white/[.06] bg-black/45 p-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <span class="text-sm font-semibold text-white">Civic Touring</span>
+                                            <span class="rounded-full bg-yellow-300 px-2.5 py-1 text-[11px] font-semibold text-black">Vitrificação</span>
+                                        </div>
+                                        <p class="mt-2 text-sm leading-6 text-zinc-400">Cliente qualificado pela IA. Horário sugerido: quinta, 8h.</p>
+                                    </div>
+                                    <div class="rounded-2xl border border-white/[.06] bg-black/45 p-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <span class="text-sm font-semibold text-white">BMW 320i</span>
+                                            <span class="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-zinc-300">Proposta aberta</span>
+                                        </div>
+                                        <p class="mt-2 text-sm leading-6 text-zinc-400">Follow-up pronto para recuperar R$ 1.890.</p>
+                                    </div>
+                                    <div class="rounded-2xl border border-yellow-300/20 bg-yellow-300/[.06] p-4">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <span class="text-sm font-semibold text-white">Box 03</span>
+                                            <span class="text-[11px] font-semibold text-yellow-200">Confirmado</span>
+                                        </div>
+                                        <p class="mt-2 text-sm leading-6 text-zinc-300">Polimento técnico entrou na agenda sem atendimento manual.</p>
+                                    </div>
+                                </div>
                             </div>
-                            <span class="hidden shrink-0 rounded-full bg-yellow-300 px-4 py-2 text-[13px] font-semibold text-black sm:block">Agir agora</span>
                         </div>
                     </div>
                 </div>

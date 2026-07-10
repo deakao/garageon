@@ -7,7 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="marketing min-h-screen bg-zinc-950 text-white antialiased">
-    <div class="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+    <div class="mx-auto max-w-[1800px] px-6 py-8 lg:px-10">
         <header class="mb-10 flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
             <div>
                 <a href="{{ route('home') }}" class="font-orbitron text-sm uppercase tracking-[.35em] text-yellow-300">GarageON Admin</a>

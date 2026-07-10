@@ -53,6 +53,7 @@ class ServiceCategorySettingsTest extends TestCase
                 'thumbnail' => UploadedFile::fake()->image('lavagem.jpg', 900, 600),
                 'duration_minutes' => 90,
                 'price' => 149,
+                'loyalty_points' => 15,
                 'lifecycle_days' => 30,
                 'category' => 'Lavagem',
                 'is_active' => '1',
@@ -62,6 +63,7 @@ class ServiceCategorySettingsTest extends TestCase
             'tenant_id' => $tenant->id,
             'name' => 'Lavagem Premium',
             'category' => 'Lavagem',
+            'loyalty_points' => 15,
         ]);
 
         $service = $tenant->services()->where('name', 'Lavagem Premium')->firstOrFail();
@@ -91,6 +93,7 @@ class ServiceCategorySettingsTest extends TestCase
             'thumbnail' => UploadedFile::fake()->image('lavagem-black.png', 900, 600),
             'duration_minutes' => 120,
             'price' => 199,
+            'loyalty_points' => 25,
             'lifecycle_days' => 45,
             'category' => 'Lavagem Técnica',
             'is_active' => '1',
@@ -100,6 +103,7 @@ class ServiceCategorySettingsTest extends TestCase
 
         Storage::disk('public')->assertMissing($originalThumbnailPath);
         Storage::disk('public')->assertExists($service->thumbnail_path);
+        $this->assertSame(25, $service->loyalty_points);
 
         $this->get(route('storefront', $tenant))
             ->assertOk()

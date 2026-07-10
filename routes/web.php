@@ -7,12 +7,14 @@ use App\Http\Controllers\Admin\NewPasswordController;
 use App\Http\Controllers\Admin\PasswordResetLinkController;
 use App\Http\Controllers\Chat\ConnectionController;
 use App\Http\Controllers\SignupRequestController;
+use App\Mail\QuoteSharedMail;
 use App\Models\Appointment;
 use App\Models\Customer;
 use App\Models\DigitalSellerAlert;
 use App\Models\LandingPage;
 use App\Models\Plan;
 use App\Models\Quote;
+use App\Models\QuoteFunnelAutomation;
 use App\Models\Service;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -28,10 +30,12 @@ use App\Services\AttendantPromptBuilder;
 use App\Services\AttendantUsage;
 use App\Services\BookingAvailability;
 use App\Services\EvolutionGoClient;
+use App\Services\QuoteFunnelAutomationRunner;
 use App\Services\VehiclePlateLookup;
 use App\Support\WhatsappPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -179,6 +183,63 @@ $storePublicBooking = function (Request $request, Tenant $tenant, string $redire
         ->with('booking_status', 'Seu horário foi reservado. A loja vai confirmar os detalhes com você.');
 };
 
+$storePublicWhatsappLead = function (Request $request, Tenant $tenant) {
+    $storePhone = WhatsappPhone::normalize($tenant->whatsapp_phone);
+
+    abort_if($storePhone === '', 404);
+
+    $validated = $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'email', 'max:255'],
+        'phone' => ['required', 'string', 'max:30'],
+    ]);
+
+    $leadPhone = WhatsappPhone::normalize($validated['phone']);
+
+    if (strlen($leadPhone) < 12) {
+        return response()->json([
+            'message' => 'Informe um WhatsApp válido com DDD.',
+            'errors' => ['phone' => ['Informe um WhatsApp válido com DDD.']],
+        ], 422);
+    }
+
+    $customer = Customer::query()
+        ->where('tenant_id', $tenant->id)
+        ->get()
+        ->first(fn (Customer $item) => WhatsappPhone::normalize($item->phone) === $leadPhone);
+
+    $leadTags = ['lead', 'landing-whatsapp'];
+
+    if ($customer) {
+        $customer->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'tags' => collect($customer->tags ?? [])
+                ->merge($leadTags)
+                ->unique()
+                ->values()
+                ->all(),
+        ]);
+    } else {
+        $customer = Customer::create([
+            'tenant_id' => $tenant->id,
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'],
+            'tags' => $leadTags,
+        ]);
+    }
+
+    $message = "Olá! Vim pela landing page da {$tenant->name}. Meu nome é {$customer->name}.";
+
+    return response()->json([
+        'ok' => true,
+        'whatsapp_url' => 'https://wa.me/'.$storePhone.'?text='.rawurlencode($message),
+        'customer_id' => $customer->id,
+    ]);
+};
+
 Route::get('/', function (Request $request) use ($findTenantByCustomDomain, $renderStorefront) {
     if ($tenant = $findTenantByCustomDomain($request)) {
         return $renderStorefront($tenant, true);
@@ -197,6 +258,14 @@ Route::post('/agendar', function (Request $request) use ($findTenantByCustomDoma
 
     return $storePublicBooking($request, $tenant, url('/'));
 })->name('storefront.custom.booking.store');
+
+Route::post('/whatsapp-lead', function (Request $request) use ($findTenantByCustomDomain, $storePublicWhatsappLead) {
+    $tenant = $findTenantByCustomDomain($request);
+
+    abort_unless($tenant, 404);
+
+    return $storePublicWhatsappLead($request, $tenant);
+})->name('storefront.custom.whatsapp-lead.store');
 
 Route::get('/cadastro', [SignupRequestController::class, 'create'])->name('signup.create');
 Route::post('/cadastro', [SignupRequestController::class, 'store'])->name('signup.store');
@@ -252,13 +321,14 @@ Route::get('/dashboard', function () {
         ->get();
 
     $calendarAppointments = $tenant->appointments()
-        ->with(['customer', 'service', 'vehicle'])
+        ->with(['customer' => fn ($query) => $query->withSum('loyaltyLedger as loyalty_points', 'points'), 'service', 'serviceItems', 'vehicle'])
         ->whereBetween('scheduled_at', [$monthStart, $monthEnd])
         ->orderBy('scheduled_at')
         ->get();
 
     $topCustomers = $tenant->customers()
         ->withCount(['appointments', 'quotes'])
+        ->withSum('loyaltyLedger as loyalty_points', 'points')
         ->orderByDesc('appointments_count')
         ->orderByDesc('quotes_count')
         ->limit(5)
@@ -334,7 +404,7 @@ Route::get('/dashboard/agenda', function (Request $request) {
     }
 
     $appointments = $tenant->appointments()
-        ->with(['customer', 'service', 'vehicle'])
+        ->with(['customer' => fn ($query) => $query->withSum('loyaltyLedger as loyalty_points', 'points'), 'service', 'serviceItems', 'vehicle'])
         ->whereBetween('scheduled_at', [$rangeStart, $rangeEnd])
         ->orderBy('scheduled_at')
         ->get();
@@ -382,7 +452,7 @@ Route::get('/dashboard/clientes', function () {
         ->with([
             'vehicles:id,customer_id,plate,brand,model,year,color',
             'appointments' => fn ($query) => $query
-                ->with(['service:id,name', 'vehicle:id,plate,brand,model'])
+                ->with(['service:id,name', 'serviceItems', 'vehicle:id,plate,brand,model'])
                 ->latest('scheduled_at'),
             'quotes' => fn ($query) => $query
                 ->with(['vehicle:id,plate,brand,model', 'items:id,quote_id,name,quantity,unit_price'])
@@ -391,6 +461,7 @@ Route::get('/dashboard/clientes', function () {
                 ->latest(),
         ])
         ->withCount(['appointments', 'quotes', 'vehicles'])
+        ->withSum('loyaltyLedger as loyalty_points', 'points')
         ->latest()
         ->get();
 
@@ -475,6 +546,7 @@ Route::put('/dashboard/clientes/{customer}', function (Request $request, Custome
         'phone' => ['required', 'string', 'max:30'],
         'email' => ['nullable', 'email', 'max:255'],
         'marketing_consent' => ['nullable', 'boolean'],
+        'loyalty_points' => ['nullable', 'integer', 'min:0', 'max:999999'],
         'vehicles' => ['nullable', 'array'],
         'vehicles.*.id' => ['nullable', 'integer'],
         'vehicles.*.plate' => ['nullable', 'string', 'max:10'],
@@ -485,9 +557,24 @@ Route::put('/dashboard/clientes/{customer}', function (Request $request, Custome
     ]);
 
     $customer->update([
-        ...collect($validated)->except('vehicles')->all(),
+        ...collect($validated)->except(['loyalty_points', 'vehicles'])->all(),
         'marketing_consent' => $request->boolean('marketing_consent'),
     ]);
+
+    if ($request->has('loyalty_points')) {
+        $targetPoints = (int) $validated['loyalty_points'];
+        $currentPoints = (int) $customer->loyaltyLedger()->sum('points');
+        $pointsDelta = $targetPoints - $currentPoints;
+
+        if ($pointsDelta !== 0) {
+            $customer->loyaltyLedger()->create([
+                'tenant_id' => $tenant->id,
+                'type' => 'adjustment',
+                'points' => $pointsDelta,
+                'reason' => 'Ajuste manual na tela do cliente',
+            ]);
+        }
+    }
 
     $keptVehicleIds = [];
 
@@ -667,11 +754,12 @@ Route::middleware('auth')->prefix('dashboard/chat')->name('chat.')->group(functi
             'conversation_id' => ['nullable', 'integer'],
             'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')->where('tenant_id', $tenant->id)],
             'body' => ['required', 'string', 'max:2000'],
+            'return_to' => ['nullable', 'in:back'],
         ]);
 
         $connection = $tenant->whatsappConnection()->first();
 
-        if (! $connection?->instance_id) {
+        if (! $connection?->instance_id || $connection->status !== 'connected') {
             return back()->withErrors(['whatsapp' => 'Conecte uma instância WhatsApp antes de enviar mensagens.']);
         }
 
@@ -740,7 +828,9 @@ Route::middleware('auth')->prefix('dashboard/chat')->name('chat.')->group(functi
             'status' => 'open',
         ])->save();
 
-        $redirect = redirect()->route('chat.index', ['conversation' => $conversation->id]);
+        $redirect = ($validated['return_to'] ?? null) === 'back'
+            ? back()
+            : redirect()->route('chat.index', ['conversation' => $conversation->id]);
 
         if (! $result['successful']) {
             return $redirect
@@ -763,7 +853,7 @@ Route::get('/dashboard/veiculos/placa', function (Request $request, VehiclePlate
     abort_if(strlen($plate) !== 7, 422, 'Informe uma placa válida.');
 
     $vehicle = Vehicle::query()
-        ->with('customer')
+        ->with(['customer' => fn ($query) => $query->withSum('loyaltyLedger as loyalty_points', 'points')])
         ->where('tenant_id', $tenant->id)
         ->where('plate', $plate)
         ->latest()
@@ -780,6 +870,7 @@ Route::get('/dashboard/veiculos/placa', function (Request $request, VehiclePlate
             'customer_name' => $vehicle->customer?->name,
             'customer_phone' => $vehicle->customer?->phone,
             'customer_email' => $vehicle->customer?->email,
+            'customer_loyalty_points' => (int) ($vehicle->customer?->loyalty_points ?? 0),
         ]);
     }
 
@@ -794,17 +885,14 @@ Route::get('/dashboard/veiculos/placa', function (Request $request, VehiclePlate
     ], 404);
 })->middleware('auth')->name('vehicles.lookup');
 
-Route::post('/dashboard/agendamentos', function (Request $request) {
-    if (auth()->user()->isPlatformAdmin()) {
-        abort(403);
-    }
-
-    $tenant = auth()->user()->tenants()->firstOrFail();
-
-    $validated = $request->validate([
+$validateDashboardAppointment = function (Request $request, Tenant $tenant, bool $withStatus = false): array {
+    $rules = [
+        '_form' => ['nullable', 'in:appointment'],
         'customer_name' => ['required', 'string', 'max:255'],
         'customer_phone' => ['required', 'string', 'max:30'],
-        'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)],
+        'services' => ['required', 'array', 'min:1'],
+        'services.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
+        'services.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         'vehicle_plate' => ['required', 'string', 'max:10'],
         'vehicle_brand' => ['required', 'string', 'max:80'],
         'vehicle_model' => ['required', 'string', 'max:120'],
@@ -813,26 +901,69 @@ Route::post('/dashboard/agendamentos', function (Request $request) {
         'scheduled_date' => ['required', 'date'],
         'scheduled_time' => ['required', 'date_format:H:i'],
         'notes' => ['nullable', 'string', 'max:1000'],
-    ]);
+    ];
 
-    $service = Service::query()
-        ->where('tenant_id', $tenant->id)
-        ->findOrFail($validated['service_id']);
+    if ($withStatus) {
+        $rules['status'] = ['required', Rule::in(['pending', 'scheduled', 'completed', 'cancelled'])];
+    }
 
-    $customer = Customer::query()
+    return $request->validate($rules);
+};
+
+$buildDashboardAppointment = function (array $validated, Tenant $tenant, ?Customer $customer = null): array {
+    $serviceIds = collect($validated['services'])->pluck('service_id')->unique()->values();
+    $services = Service::query()
         ->where('tenant_id', $tenant->id)
-        ->where('phone', $validated['customer_phone'])
-        ->first();
+        ->where('is_active', true)
+        ->whereIn('id', $serviceIds)
+        ->get()
+        ->keyBy('id');
+
+    $appointmentServices = [];
+    $totalDurationMinutes = 0;
+
+    foreach ($validated['services'] as $line) {
+        $service = $services->get($line['service_id']);
+
+        if (! $service) {
+            continue;
+        }
+
+        $quantity = (int) $line['quantity'];
+        $totalDurationMinutes += $service->duration_minutes * $quantity;
+
+        $appointmentServices[] = [
+            'service_id' => $service->id,
+            'name' => $service->name,
+            'quantity' => $quantity,
+            'duration_minutes' => $service->duration_minutes,
+            'unit_price' => $service->price,
+        ];
+    }
+
+    $primaryService = $services->get($validated['services'][0]['service_id']);
 
     if ($customer) {
-        $customer->update(['name' => $validated['customer_name']]);
-    } else {
-        $customer = Customer::create([
-            'tenant_id' => $tenant->id,
+        $customer->update([
             'name' => $validated['customer_name'],
             'phone' => $validated['customer_phone'],
-            'tags' => ['agenda'],
         ]);
+    } else {
+        $customer = Customer::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('phone', $validated['customer_phone'])
+            ->first();
+
+        if ($customer) {
+            $customer->update(['name' => $validated['customer_name']]);
+        } else {
+            $customer = Customer::create([
+                'tenant_id' => $tenant->id,
+                'name' => $validated['customer_name'],
+                'phone' => $validated['customer_phone'],
+                'tags' => ['agenda'],
+            ]);
+        }
     }
 
     $vehiclePlate = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $validated['vehicle_plate']) ?? '');
@@ -853,20 +984,74 @@ Route::post('/dashboard/agendamentos', function (Request $request) {
 
     $scheduledAt = Carbon::parse($validated['scheduled_date'].' '.$validated['scheduled_time']);
 
-    Appointment::create([
+    return [$customer, $vehicle, $primaryService, $appointmentServices, $scheduledAt, $totalDurationMinutes];
+};
+
+Route::post('/dashboard/agendamentos', function (Request $request) use ($validateDashboardAppointment, $buildDashboardAppointment) {
+    if (auth()->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = auth()->user()->tenants()->firstOrFail();
+    $validated = $validateDashboardAppointment($request, $tenant);
+    [$customer, $vehicle, $primaryService, $appointmentServices, $scheduledAt, $totalDurationMinutes] = $buildDashboardAppointment($validated, $tenant);
+
+    $appointment = Appointment::create([
         'tenant_id' => $tenant->id,
         'customer_id' => $customer->id,
-        'service_id' => $service->id,
+        'service_id' => $primaryService->id,
         'vehicle_id' => $vehicle->id,
         'source' => 'manual',
         'status' => 'scheduled',
         'scheduled_at' => $scheduledAt,
-        'ends_at' => $scheduledAt->copy()->addMinutes($service->duration_minutes),
+        'ends_at' => $scheduledAt->copy()->addMinutes($totalDurationMinutes),
         'notes' => $validated['notes'] ?? null,
     ]);
 
+    $appointment->serviceItems()->createMany($appointmentServices);
+
     return back()->with('status', 'Agendamento criado e agenda atualizada.');
 })->middleware('auth')->name('appointments.store');
+
+Route::put('/dashboard/agendamentos/{appointment}', function (Request $request, Appointment $appointment) use ($validateDashboardAppointment, $buildDashboardAppointment) {
+    if (auth()->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = auth()->user()->tenants()->firstOrFail();
+    abort_unless($appointment->tenant_id === $tenant->id, 404);
+
+    $validated = $validateDashboardAppointment($request, $tenant, true);
+    [$customer, $vehicle, $primaryService, $appointmentServices, $scheduledAt, $totalDurationMinutes] = $buildDashboardAppointment($validated, $tenant, $appointment->customer);
+
+    $appointment->update([
+        'customer_id' => $customer->id,
+        'service_id' => $primaryService->id,
+        'vehicle_id' => $vehicle->id,
+        'status' => $validated['status'],
+        'scheduled_at' => $scheduledAt,
+        'ends_at' => $scheduledAt->copy()->addMinutes($totalDurationMinutes),
+        'notes' => $validated['notes'] ?? null,
+    ]);
+
+    $appointment->serviceItems()->delete();
+    $appointment->serviceItems()->createMany($appointmentServices);
+
+    return back()->with('status', 'Agendamento atualizado e agenda sincronizada.');
+})->middleware('auth')->name('appointments.update');
+
+Route::delete('/dashboard/agendamentos/{appointment}', function (Appointment $appointment) {
+    if (auth()->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = auth()->user()->tenants()->firstOrFail();
+    abort_unless($appointment->tenant_id === $tenant->id, 404);
+
+    $appointment->delete();
+
+    return back()->with('status', 'Agendamento excluído da agenda.');
+})->middleware('auth')->name('appointments.destroy');
 
 Route::post('/dashboard/vendas', function (Request $request) {
     if (auth()->user()->isPlatformAdmin()) {
@@ -879,7 +1064,9 @@ Route::post('/dashboard/vendas', function (Request $request) {
         '_form' => ['required', 'in:sale'],
         'customer_name' => ['required', 'string', 'max:255'],
         'customer_phone' => ['required', 'string', 'max:30'],
-        'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)],
+        'services' => ['required', 'array', 'min:1'],
+        'services.*.service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('tenant_id', $tenant->id)->where('is_active', true)],
+        'services.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         'vehicle_plate' => ['required', 'string', 'max:10'],
         'vehicle_brand' => ['required', 'string', 'max:80'],
         'vehicle_model' => ['required', 'string', 'max:120'],
@@ -888,14 +1075,20 @@ Route::post('/dashboard/vendas', function (Request $request) {
         'sold_date' => ['required', 'date'],
         'sold_time' => ['required', 'date_format:H:i'],
         'amount' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+        'loyalty_points_to_debit' => ['nullable', 'integer', 'min:0', 'max:999999'],
         'payment_method' => ['required', 'string', Rule::in(['debito', 'credito', 'pix', 'dinheiro', 'boleto', 'transferencia'])],
         'notes' => ['nullable', 'string', 'max:1000'],
     ]);
 
-    $service = Service::query()
+    $pointsToDebit = (int) ($validated['loyalty_points_to_debit'] ?? 0);
+
+    $serviceIds = collect($validated['services'])->pluck('service_id')->unique()->values();
+    $services = Service::query()
         ->where('tenant_id', $tenant->id)
         ->where('is_active', true)
-        ->findOrFail($validated['service_id']);
+        ->whereIn('id', $serviceIds)
+        ->get()
+        ->keyBy('id');
 
     $vehicle = null;
     $vehiclePlate = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $validated['vehicle_plate'] ?? '') ?? '');
@@ -905,17 +1098,25 @@ Route::post('/dashboard/vendas', function (Request $request) {
             ->where('tenant_id', $tenant->id)
             ->where('plate', $vehiclePlate)
             ->with('customer')
-            ->get()
-            ->first(fn (Vehicle $vehicle) => Str::lower((string) $vehicle->customer?->email) === Str::lower($validated['customer_email']))
+            ->latest()
+            ->first()
         : null;
 
     $customer = $identifiedVehicle?->customer;
 
-    if (! $customer && $vehiclePlate === '') {
+    if (! $customer) {
         $customer = Customer::query()
             ->where('tenant_id', $tenant->id)
             ->where('phone', $validated['customer_phone'])
             ->first();
+    }
+
+    $availablePoints = $customer ? (int) $customer->loyaltyLedger()->sum('points') : 0;
+
+    if ($pointsToDebit > $availablePoints) {
+        return back()
+            ->withErrors(['loyalty_points_to_debit' => 'O cliente tem '.number_format($availablePoints, 0, ',', '.').' pts disponíveis.'])
+            ->withInput();
     }
 
     if ($customer) {
@@ -931,7 +1132,7 @@ Route::post('/dashboard/vendas', function (Request $request) {
 
     $vehiclePlate = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $validated['vehicle_plate']) ?? '');
 
-    Vehicle::updateOrCreate(
+    $vehicle = Vehicle::updateOrCreate(
         [
             'tenant_id' => $tenant->id,
             'plate' => $vehiclePlate,
@@ -950,6 +1151,7 @@ Route::post('/dashboard/vendas', function (Request $request) {
     $quote = Quote::create([
         'tenant_id' => $tenant->id,
         'customer_id' => $customer->id,
+        'vehicle_id' => $vehicle->id,
         'status' => 'approved',
         'total' => $validated['amount'],
         'paid_at' => $paidAt,
@@ -958,12 +1160,46 @@ Route::post('/dashboard/vendas', function (Request $request) {
         'notes' => $validated['notes'] ?? null,
     ]);
 
-    $quote->items()->create([
-        'service_id' => $service->id,
-        'name' => $service->name,
-        'quantity' => 1,
-        'unit_price' => $validated['amount'],
-    ]);
+    $items = [];
+    $loyaltyPoints = 0;
+
+    foreach ($validated['services'] as $line) {
+        $service = $services->get($line['service_id']);
+
+        if (! $service) {
+            continue;
+        }
+
+        $quantity = (int) $line['quantity'];
+        $loyaltyPoints += $service->loyalty_points * $quantity;
+
+        $items[] = [
+            'service_id' => $service->id,
+            'name' => $service->name,
+            'quantity' => $quantity,
+            'unit_price' => $service->price,
+        ];
+    }
+
+    $quote->items()->createMany($items);
+
+    if ($loyaltyPoints > 0) {
+        $customer->loyaltyLedger()->create([
+            'tenant_id' => $tenant->id,
+            'type' => 'earn',
+            'points' => $loyaltyPoints,
+            'reason' => 'Venda #'.$quote->id,
+        ]);
+    }
+
+    if ($pointsToDebit > 0) {
+        $customer->loyaltyLedger()->create([
+            'tenant_id' => $tenant->id,
+            'type' => 'redeem',
+            'points' => -$pointsToDebit,
+            'reason' => 'Débito na venda #'.$quote->id,
+        ]);
+    }
 
     return back()->with('status', 'Venda registrada e incluída no resumo do mês.');
 })->middleware('auth')->name('sales.store');
@@ -984,10 +1220,22 @@ Route::get('/dashboard/orcamentos', function () {
         ->latest()
         ->get();
 
+    $quoteColumns = [
+        'sent' => 'Enviado',
+        'pending' => 'Aguardando',
+        'accepted' => 'Aceito',
+        'expired' => 'Expirado',
+    ];
+
+    $quotesByStatus = collect($quoteColumns)
+        ->mapWithKeys(fn ($label, $status) => [$status => $quotes->where('status', $status)->values()]);
+
     return view('garageon.quotes.index', [
         'tenant' => $tenant,
         'services' => $services,
         'quotes' => $quotes,
+        'quoteColumns' => $quoteColumns,
+        'quotesByStatus' => $quotesByStatus,
         'quoteStats' => [
             'total' => $quotes->count(),
             'sent_this_month' => $quotes->filter(fn ($quote) => $quote->status === 'sent' && $quote->created_at->isCurrentMonth())->count(),
@@ -1096,6 +1344,8 @@ Route::post('/dashboard/orcamentos', function (Request $request) {
 
     $quote->items()->createMany($items);
 
+    app(QuoteFunnelAutomationRunner::class)->dispatchForStage($quote, 'sent');
+
     return redirect()
         ->route('quotes.show', $quote)
         ->with('status', 'Orçamento gerado e pronto para apresentar ao cliente.');
@@ -1110,12 +1360,64 @@ Route::get('/dashboard/orcamentos/{quote}', function (Quote $quote) {
     abort_unless($quote->tenant_id === $tenant->id, 404);
 
     $quote->load(['customer', 'vehicle', 'items.service']);
+    $connection = $tenant->whatsappConnection()->first();
 
     return view('garageon.quotes.show', [
         'tenant' => $tenant,
         'quote' => $quote,
+        'whatsappConnected' => filled($connection?->instance_id) && $connection->status === 'connected',
     ]);
 })->middleware('auth')->name('quotes.show');
+
+Route::post('/dashboard/orcamentos/{quote}/email', function (Quote $quote) {
+    if (auth()->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = auth()->user()->tenants()->firstOrFail();
+    abort_unless($quote->tenant_id === $tenant->id, 404);
+
+    $quote->load(['tenant', 'customer', 'vehicle', 'items.service']);
+
+    if (blank($quote->customer->email)) {
+        return back()->withErrors(['email' => 'Cadastre um e-mail no cliente antes de enviar o orçamento.']);
+    }
+
+    Mail::mailer(config('mail.default'))->to($quote->customer->email)->send(new QuoteSharedMail($quote));
+
+    return back()->with('status', 'Orçamento enviado por e-mail.');
+})->middleware('auth')->name('quotes.email');
+
+Route::patch('/dashboard/orcamentos/{quote}/status', function (Request $request, Quote $quote) {
+    if (auth()->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = auth()->user()->tenants()->firstOrFail();
+    abort_unless($quote->tenant_id === $tenant->id, 404);
+    abort_if($quote->status === 'approved', 422);
+
+    $validated = $request->validate([
+        'status' => ['required', 'in:sent,pending,accepted,expired'],
+    ]);
+
+    $previousStatus = $quote->status;
+
+    $quote->update(['status' => $validated['status']]);
+
+    if ($previousStatus !== $validated['status']) {
+        app(QuoteFunnelAutomationRunner::class)->dispatchForStage($quote, $validated['status']);
+    }
+
+    if ($request->expectsJson()) {
+        return response()->json([
+            'status' => $quote->status,
+            'message' => 'Status do orçamento atualizado.',
+        ]);
+    }
+
+    return back()->with('status', 'Status do orçamento atualizado.');
+})->middleware('auth')->name('quotes.status');
 
 Route::put('/dashboard/orcamentos/{quote}', function (Request $request, Quote $quote) {
     if (auth()->user()->isPlatformAdmin()) {
@@ -1143,6 +1445,8 @@ Route::put('/dashboard/orcamentos/{quote}', function (Request $request, Quote $q
         'services.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         'notes' => ['nullable', 'string', 'max:1000'],
     ]);
+
+    $previousStatus = $quote->status;
 
     $quote->customer->update([
         'name' => $validated['customer_name'],
@@ -1205,6 +1509,10 @@ Route::put('/dashboard/orcamentos/{quote}', function (Request $request, Quote $q
 
     $quote->items()->delete();
     $quote->items()->createMany($items);
+
+    if ($previousStatus !== $validated['status']) {
+        app(QuoteFunnelAutomationRunner::class)->dispatchForStage($quote, $validated['status']);
+    }
 
     return back()->with('status', 'Orçamento atualizado com sucesso.');
 })->middleware('auth')->name('quotes.update');
@@ -1295,10 +1603,27 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
             'eyebrow' => ['nullable', 'string', 'max:80'],
             'headline' => ['required', 'string', 'max:255'],
             'subheadline' => ['required', 'string', 'max:255'],
-            'hero_image' => ['nullable', 'url', 'max:2048'],
+            'hero_image' => [
+                'nullable',
+                'string',
+                'max:2048',
+                function (string $attribute, mixed $value, Closure $fail) use ($tenant) {
+                    if (filter_var($value, FILTER_VALIDATE_URL) || Str::startsWith((string) $value, "/storage/tenants/{$tenant->id}/landing/")) {
+                        return;
+                    }
+
+                    $fail('Informe uma URL válida ou envie uma imagem.');
+                },
+            ],
+            'hero_image_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'hero_badge_title' => ['nullable', 'string', 'max:80'],
             'hero_badge_body' => ['nullable', 'string', 'max:160'],
             'cta_label' => ['required', 'string', 'max:80'],
+            'testimonials' => ['nullable', 'array', 'max:12'],
+            'testimonials.*.name' => ['nullable', 'string', 'max:80'],
+            'testimonials.*.role' => ['nullable', 'string', 'max:80'],
+            'testimonials.*.quote' => ['nullable', 'string', 'max:500'],
+            'testimonials.*.rating' => ['nullable', 'integer', 'min:1', 'max:5'],
             'seo_title' => ['nullable', 'string', 'max:70'],
             'seo_description' => ['nullable', 'string', 'max:160'],
             'seo_keywords' => ['nullable', 'string', 'max:255'],
@@ -1308,16 +1633,41 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
             'published' => ['nullable', 'boolean'],
         ]);
 
+        $landingPage = $tenant->landingPage;
+        $heroImage = $validated['hero_image'] ?? null;
+
+        if ($request->hasFile('hero_image_file')) {
+            $oldHeroImagePath = $landingPage?->hero_image ? Str::after($landingPage->hero_image, '/storage/') : null;
+
+            if ($oldHeroImagePath && $oldHeroImagePath !== $landingPage->hero_image && Str::startsWith($oldHeroImagePath, "tenants/{$tenant->id}/landing/")) {
+                Storage::disk('public')->delete($oldHeroImagePath);
+            }
+
+            $heroImage = '/storage/'.$request->file('hero_image_file')->store("tenants/{$tenant->id}/landing", 'public');
+        }
+
+        $testimonials = collect($validated['testimonials'] ?? [])
+            ->map(fn (array $item) => [
+                'name' => trim((string) ($item['name'] ?? '')),
+                'role' => trim((string) ($item['role'] ?? '')),
+                'quote' => trim((string) ($item['quote'] ?? '')),
+                'rating' => max(1, min(5, (int) ($item['rating'] ?? 5))),
+            ])
+            ->filter(fn (array $item) => $item['name'] !== '' && $item['quote'] !== '')
+            ->values()
+            ->all();
+
         LandingPage::updateOrCreate(
             ['tenant_id' => $tenant->id],
             [
                 'eyebrow' => $validated['eyebrow'] ?? null,
                 'headline' => $validated['headline'],
                 'subheadline' => $validated['subheadline'],
-                'hero_image' => $validated['hero_image'] ?? null,
+                'hero_image' => $heroImage,
                 'hero_badge_title' => $validated['hero_badge_title'] ?? null,
                 'hero_badge_body' => $validated['hero_badge_body'] ?? null,
                 'cta_label' => $validated['cta_label'],
+                'testimonials' => $testimonials,
                 'seo_title' => $validated['seo_title'] ?? null,
                 'seo_description' => $validated['seo_description'] ?? null,
                 'seo_keywords' => $validated['seo_keywords'] ?? null,
@@ -1412,6 +1762,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
             'thumbnail' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'loyalty_points' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'lifecycle_days' => ['nullable', 'integer', 'min:1', 'max:999'],
             'category' => ['required', 'string', 'max:80', Rule::exists('tenant_service_categories', 'name')->where('tenant_id', $tenant->id)],
             'is_active' => ['nullable', 'boolean'],
@@ -1420,6 +1771,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
         $servicePayload = [
             ...$validated,
             'slug' => Str::slug($validated['name']).'-'.Str::lower(Str::random(5)),
+            'loyalty_points' => (int) ($validated['loyalty_points'] ?? 0),
             'is_active' => $request->boolean('is_active'),
         ];
 
@@ -1444,6 +1796,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
             'thumbnail' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'duration_minutes' => ['required', 'integer', 'min:15', 'max:1440'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'loyalty_points' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'lifecycle_days' => ['nullable', 'integer', 'min:1', 'max:999'],
             'category' => ['required', 'string', 'max:80', Rule::exists('tenant_service_categories', 'name')->where('tenant_id', $tenant->id)],
             'is_active' => ['nullable', 'boolean'],
@@ -1451,6 +1804,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
 
         $servicePayload = [
             ...$validated,
+            'loyalty_points' => (int) ($validated['loyalty_points'] ?? 0),
             'is_active' => $request->boolean('is_active'),
         ];
 
@@ -1668,6 +2022,95 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
 
         return back()->with('status', 'Piloto automático atualizado.');
     })->name('attendant.update');
+
+    $quoteFunnelPlaceholders = [
+        '{{cliente}}' => 'Nome do cliente',
+        '{{loja}}' => 'Nome da loja',
+        '{{orcamento}}' => 'Número do orçamento',
+        '{{valor}}' => 'Valor total',
+        '{{placa}}' => 'Placa do veículo',
+        '{{veiculo}}' => 'Marca e modelo',
+        '{{link}}' => 'Link público do orçamento',
+        '{{status}}' => 'Status atual',
+    ];
+
+    $validateQuoteFunnelAutomation = function (Request $request): array {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'stage' => ['required', Rule::in(array_keys(QuoteFunnelAutomation::STAGES))],
+            'channel' => ['required', Rule::in(array_keys(QuoteFunnelAutomation::CHANNELS))],
+            'delay_value' => ['required', 'integer', 'min:0', 'max:365'],
+            'delay_unit' => ['required', Rule::in(array_keys(QuoteFunnelAutomation::DELAY_UNITS))],
+            'subject' => ['nullable', 'string', 'max:180'],
+            'message_template' => ['required', 'string', 'max:4000'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
+        $validated['subject'] = $validated['channel'] === 'email'
+            ? ($validated['subject'] ?? null)
+            : null;
+
+        return $validated;
+    };
+
+    Route::get('/funil-orcamentos', function () use ($quoteFunnelPlaceholders) {
+        $tenant = auth()->user()->tenants()->with('plan')->firstOrFail();
+
+        $automations = $tenant->quoteFunnelAutomations()
+            ->get()
+            ->sortBy([
+                fn ($automation) => array_search($automation->stage, array_keys(QuoteFunnelAutomation::STAGES), true),
+                fn ($automation) => $automation->delayInMinutes(),
+                'name',
+            ])
+            ->values();
+
+        return view('garageon.settings.quote-funnel', [
+            'tenant' => $tenant,
+            'automations' => $automations,
+            'placeholders' => $quoteFunnelPlaceholders,
+            'stats' => [
+                'total' => $automations->count(),
+                'active' => $automations->where('is_active', true)->count(),
+                'whatsapp' => $automations->where('channel', 'whatsapp')->count(),
+                'email' => $automations->where('channel', 'email')->count(),
+            ],
+        ]);
+    })->name('quote-funnel');
+
+    Route::post('/funil-orcamentos', function (Request $request) use ($validateQuoteFunnelAutomation) {
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        $validated = $validateQuoteFunnelAutomation($request);
+
+        $tenant->quoteFunnelAutomations()->create($validated);
+
+        return redirect()
+            ->route('settings.quote-funnel')
+            ->with('status', 'Automação criada com sucesso.');
+    })->name('quote-funnel.store');
+
+    Route::put('/funil-orcamentos/{automation}', function (Request $request, QuoteFunnelAutomation $automation) use ($validateQuoteFunnelAutomation) {
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        abort_unless($automation->tenant_id === $tenant->id, 404);
+
+        $automation->update($validateQuoteFunnelAutomation($request));
+
+        return redirect()
+            ->route('settings.quote-funnel')
+            ->with('status', 'Automação atualizada com sucesso.');
+    })->name('quote-funnel.update');
+
+    Route::delete('/funil-orcamentos/{automation}', function (QuoteFunnelAutomation $automation) {
+        $tenant = auth()->user()->tenants()->firstOrFail();
+        abort_unless($automation->tenant_id === $tenant->id, 404);
+
+        $automation->delete();
+
+        return redirect()
+            ->route('settings.quote-funnel')
+            ->with('status', 'Automação removida.');
+    })->name('quote-funnel.destroy');
 });
 
 Route::get('/admin', function () {
@@ -1689,6 +2132,10 @@ Route::get('/agendar/{tenant:slug}', function (Tenant $tenant) {
 Route::post('/loja/{tenant:slug}/agendar', function (Request $request, Tenant $tenant) use ($storePublicBooking) {
     return $storePublicBooking($request, $tenant, route('storefront', $tenant));
 })->name('storefront.booking.store');
+
+Route::post('/loja/{tenant:slug}/whatsapp-lead', function (Request $request, Tenant $tenant) use ($storePublicWhatsappLead) {
+    return $storePublicWhatsappLead($request, $tenant);
+})->name('storefront.whatsapp-lead.store');
 
 Route::get('/loja/{tenant:slug}', function (Tenant $tenant) use ($renderStorefront) {
     return $renderStorefront($tenant);

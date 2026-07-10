@@ -85,6 +85,11 @@ class Tenant extends Model
         return $this->hasMany(Quote::class);
     }
 
+    public function quoteFunnelAutomations(): HasMany
+    {
+        return $this->hasMany(QuoteFunnelAutomation::class);
+    }
+
     public function whatsappConnection(): HasOne
     {
         return $this->hasOne(WhatsappConnection::class);

@@ -21,6 +21,7 @@ const openOverlay = (name) => {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     document.body.classList.add('overflow-hidden');
+    modal.querySelectorAll('[data-quote-service-editor]').forEach(refreshQuoteTotalForEditor);
 
     if (name === 'sale-modal') {
         refreshSaleDatetimeLabel();
@@ -38,7 +39,9 @@ const closeOverlay = (modal) => {
     modal?.classList.add('hidden');
     modal?.classList.remove('flex');
 
-    if (! document.querySelector(`${Object.values(overlaySelectors).join(',')}:not(.hidden)`)) {
+    const hasOpenOverlay = Object.values(overlaySelectors).some((selector) => document.querySelector(`${selector}:not(.hidden)`));
+
+    if (! hasOpenOverlay) {
         document.body.classList.remove('overflow-hidden');
     }
 };
@@ -126,25 +129,48 @@ const formatPhoneInput = (input) => {
 
 const refreshQuoteTotalForEditor = (editor) => {
     const totalEl = editor?.querySelector('[data-quote-total]');
-
-    if (! totalEl) {
-        return;
-    }
+    const amountInput = editor?.closest('form')?.querySelector('[data-sale-amount]');
+    const loyaltyPreview = editor?.querySelector('[data-sale-loyalty-preview]');
+    const durationPreview = editor?.querySelector('[data-appointment-duration-preview]');
 
     let total = 0;
+    let loyaltyPoints = 0;
+    let durationMinutes = 0;
 
     editor.querySelectorAll('[data-quote-service-row]').forEach((row) => {
         const select = row.querySelector('[data-quote-service-select]');
         const qtyInput = row.querySelector('[data-quote-service-qty]');
         const price = Number(select?.selectedOptions[0]?.dataset.price ?? 0);
+        const points = Number(select?.selectedOptions[0]?.dataset.loyaltyPoints ?? 0);
+        const duration = Number(select?.selectedOptions[0]?.dataset.durationMinutes ?? 0);
         const qty = Number(qtyInput?.value ?? 1);
 
         if (select?.value && qty > 0) {
             total += price * qty;
+            loyaltyPoints += points * qty;
+            durationMinutes += duration * qty;
         }
     });
 
-    totalEl.textContent = formatQuoteMoney(total);
+    if (totalEl) {
+        totalEl.textContent = formatQuoteMoney(total);
+    }
+
+    if (amountInput && editor.matches('[data-sale-service-editor]')) {
+        amountInput.value = total.toFixed(2);
+    }
+
+    if (loyaltyPreview) {
+        loyaltyPreview.textContent = total > 0
+            ? `Esta venda soma ${loyaltyPoints.toLocaleString('pt-BR')} pts para o cliente.`
+            : 'Escolha um serviço para ver os pontos da venda.';
+    }
+
+    if (durationPreview) {
+        durationPreview.textContent = durationMinutes > 0
+            ? `${durationMinutes.toLocaleString('pt-BR')} min`
+            : '0 min';
+    }
 };
 
 const refreshAllQuoteTotals = () => {
@@ -167,8 +193,11 @@ const initVehicleLookup = (lookup) => {
     const model = lookup.querySelector('[data-vehicle-model]');
     const year = lookup.querySelector('[data-vehicle-year]');
     const color = lookup.querySelector('[data-vehicle-color]');
-    const customerName = lookup.closest('form')?.querySelector('[data-customer-name]');
-    const customerPhone = lookup.closest('form')?.querySelector('[data-customer-phone]');
+    const form = lookup.closest('form');
+    const customerName = form?.querySelector('[data-customer-name]');
+    const customerPhone = form?.querySelector('[data-customer-phone]');
+    const loyaltyBalance = form?.querySelector('[data-sale-loyalty-balance]');
+    const loyaltyDebit = form?.querySelector('[data-sale-loyalty-debit]');
     const trigger = lookup.querySelector('[data-vehicle-lookup-trigger]');
     const status = lookup.querySelector('[data-vehicle-lookup-status]');
     let lookupTimer;
@@ -212,8 +241,22 @@ const initVehicleLookup = (lookup) => {
         }
 
         if (vehicle.source === 'garageon') {
-            setStatus('Cliente e veículo encontrados na base. Confira antes de salvar.', 'success');
+            const points = Number(vehicle.customer_loyalty_points ?? 0);
+            if (loyaltyBalance) {
+                loyaltyBalance.textContent = `Saldo disponível: ${points.toLocaleString('pt-BR')} pts.`;
+            }
+
+            if (loyaltyDebit) {
+                loyaltyDebit.max = points.toString();
+            }
+
+            setStatus(`Cliente e veículo encontrados. Saldo: ${points.toLocaleString('pt-BR')} pts.`, 'success');
         } else {
+            if (loyaltyBalance) {
+                loyaltyBalance.textContent = 'Saldo será validado ao salvar a venda.';
+            }
+
+            loyaltyDebit?.removeAttribute('max');
             setStatus('Dados do veículo encontrados. Confira antes de salvar.', 'success');
         }
     };
@@ -305,8 +348,8 @@ document.querySelectorAll('[data-customers-table]').forEach((table) => {
             info: 'Mostrando {start} a {end} de {rows} clientes',
         },
         columns: [
-            { select: 4, type: 'date', format: 'DD/MM/YYYY', sortSequence: ['desc', 'asc'] },
-            { select: 5, sortable: false },
+            { select: 5, type: 'date', format: 'DD/MM/YYYY', sortSequence: ['desc', 'asc'] },
+            { select: 6, sortable: false },
         ],
     });
 });
@@ -333,37 +376,203 @@ document.querySelectorAll('[data-services-table]').forEach((table) => {
             info: 'Mostrando {start} a {end} de {rows} serviços',
         },
         columns: [
-            { select: 5, sortable: false },
+            { select: 6, sortable: false },
         ],
     });
 });
 
-document.querySelectorAll('[data-quotes-table]').forEach((table) => {
-    initGarageDatatable(table, {
-        searchable: true,
-        sortable: true,
-        fixedHeight: false,
-        perPage: 10,
-        perPageSelect: [10, 15, 25, 50, ['Todos', -1]],
-        firstLast: true,
-        nextPrev: true,
-        firstText: 'Primeira',
-        lastText: 'Última',
-        nextText: 'Próxima',
-        prevText: 'Anterior',
-        labels: {
-            placeholder: 'Buscar cliente, placa, status ou valor...',
-            searchTitle: 'Buscar nos orçamentos',
-            perPage: 'orçamentos por página',
-            noRows: 'Nenhum orçamento cadastrado ainda',
-            noResults: 'Nenhum orçamento combina com essa busca',
-            info: 'Mostrando {start} a {end} de {rows} orçamentos',
-        },
-        columns: [
-            { select: 6, type: 'date', format: 'DD/MM/YYYY', sortSequence: ['desc', 'asc'] },
-            { select: 7, sortable: false },
-        ],
+document.querySelectorAll('[data-quotes-kanban]').forEach((board) => {
+    const csrfToken = board.dataset.csrf;
+    const statusUrlTemplate = board.dataset.statusUrlTemplate;
+    const feedback = board.querySelector('[data-quotes-kanban-feedback]');
+    const searchInput = board.querySelector('[data-quotes-kanban-search]');
+    const emptyFilter = board.querySelector('[data-quotes-kanban-empty-filter]');
+    let draggedCard = null;
+    let originList = null;
+
+    const setFeedback = (message, type = 'success') => {
+        if (! feedback) {
+            return;
+        }
+
+        feedback.textContent = message;
+        feedback.classList.remove('hidden', 'border-yellow-300/25', 'bg-yellow-300/10', 'text-yellow-100', 'border-red-300/25', 'bg-red-300/10', 'text-red-100');
+
+        if (type === 'error') {
+            feedback.classList.add('border-red-300/25', 'bg-red-300/10', 'text-red-100');
+        } else {
+            feedback.classList.add('border-yellow-300/25', 'bg-yellow-300/10', 'text-yellow-100');
+        }
+    };
+
+    const refreshColumnMeta = (list) => {
+        const column = list.closest('[data-quotes-column]');
+        const count = list.querySelectorAll('[data-quote-card]:not(.hidden)').length;
+        const emptyState = list.querySelector('[data-column-empty]');
+        const countLabel = column?.querySelector('[data-column-count]');
+        const countWord = column?.querySelector('[data-column-count-label]');
+        const badge = column?.querySelector('[data-column-badge]');
+
+        if (countLabel) {
+            countLabel.textContent = String(count);
+        }
+
+        if (countWord) {
+            countWord.textContent = count === 1 ? 'proposta' : 'propostas';
+        }
+
+        if (badge) {
+            badge.textContent = String(count);
+        }
+
+        if (emptyState) {
+            emptyState.classList.toggle('hidden', count > 0);
+            emptyState.classList.toggle('flex', count === 0);
+        }
+    };
+
+    const refreshAllColumns = () => {
+        board.querySelectorAll('[data-quotes-list]').forEach(refreshColumnMeta);
+
+        if (emptyFilter) {
+            const visibleCards = board.querySelectorAll('[data-quote-card]:not(.hidden)').length;
+            const hasCards = board.querySelectorAll('[data-quote-card]').length > 0;
+            emptyFilter.classList.toggle('hidden', ! hasCards || visibleCards > 0);
+        }
+    };
+
+    const applySearch = () => {
+        const term = (searchInput?.value ?? '').trim().toLowerCase();
+
+        board.querySelectorAll('[data-quote-card]').forEach((card) => {
+            const haystack = card.dataset.search ?? '';
+            card.classList.toggle('hidden', term !== '' && ! haystack.includes(term));
+        });
+
+        refreshAllColumns();
+    };
+
+    const moveCard = (card, list, beforeCard = null) => {
+        const emptyState = list.querySelector('[data-column-empty]');
+
+        if (beforeCard && beforeCard !== card) {
+            list.insertBefore(card, beforeCard);
+        } else if (emptyState) {
+            list.insertBefore(card, emptyState);
+        } else {
+            list.appendChild(card);
+        }
+
+        card.dataset.status = list.dataset.status;
+    };
+
+    const persistStatus = async (card, status, fallbackList) => {
+        const quoteId = card.dataset.quoteId;
+        const url = statusUrlTemplate.replace('__QUOTE__', quoteId);
+
+        try {
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ status }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (! response.ok) {
+                throw new Error(data.message ?? 'Não foi possível atualizar o status.');
+            }
+
+            const statusSelect = document.querySelector(`#quote-edit-${quoteId} select[name="status"]`);
+
+            if (statusSelect) {
+                statusSelect.value = status;
+            }
+
+            setFeedback(data.message ?? 'Status do orçamento atualizado.');
+        } catch (error) {
+            moveCard(card, fallbackList);
+            refreshAllColumns();
+            setFeedback(error.message || 'Não foi possível atualizar o status.', 'error');
+        }
+    };
+
+    board.querySelectorAll('[data-quote-card]').forEach((card) => {
+        card.addEventListener('dragstart', (event) => {
+            if (event.target.closest('a, button, form, input, select, textarea')) {
+                event.preventDefault();
+                return;
+            }
+
+            draggedCard = card;
+            originList = card.closest('[data-quotes-list]');
+            card.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', card.dataset.quoteId);
+        });
+
+        card.addEventListener('dragend', () => {
+            card.classList.remove('is-dragging');
+            board.querySelectorAll('[data-quotes-list]').forEach((list) => list.classList.remove('is-drop-target'));
+            draggedCard = null;
+            originList = null;
+            refreshAllColumns();
+        });
     });
+
+    board.querySelectorAll('[data-quotes-list]').forEach((list) => {
+        list.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            list.classList.add('is-drop-target');
+
+            if (! draggedCard) {
+                return;
+            }
+
+            const afterCard = [...list.querySelectorAll('[data-quote-card]:not(.is-dragging):not(.hidden)')]
+                .find((card) => {
+                    const rect = card.getBoundingClientRect();
+                    return event.clientY < rect.top + rect.height / 2;
+                });
+
+            moveCard(draggedCard, list, afterCard ?? null);
+        });
+
+        list.addEventListener('dragleave', (event) => {
+            if (! list.contains(event.relatedTarget)) {
+                list.classList.remove('is-drop-target');
+            }
+        });
+
+        list.addEventListener('drop', (event) => {
+            event.preventDefault();
+            list.classList.remove('is-drop-target');
+
+            if (! draggedCard) {
+                return;
+            }
+
+            const nextStatus = list.dataset.status;
+            const previousStatus = originList?.dataset.status;
+            const previousList = originList;
+
+            moveCard(draggedCard, list);
+            refreshAllColumns();
+
+            if (nextStatus && nextStatus !== previousStatus && previousList) {
+                persistStatus(draggedCard, nextStatus, previousList);
+            }
+        });
+    });
+
+    searchInput?.addEventListener('input', applySearch);
+    refreshAllColumns();
 });
 
 document.querySelectorAll('[data-vehicle-lookup]').forEach(initVehicleLookup);
@@ -377,17 +586,6 @@ document.querySelectorAll('[data-phone-mask]').forEach((input) => {
     input.addEventListener('input', () => formatPhoneInput(input));
 });
 
-document.querySelector('[data-sale-service-select]')?.addEventListener('change', (event) => {
-    const option = event.target.selectedOptions[0];
-    const amountInput = document.querySelector('[data-sale-amount]');
-
-    if (! option?.dataset.price || ! amountInput) {
-        return;
-    }
-
-    amountInput.value = Number(option.dataset.price).toFixed(2);
-});
-
 document.querySelector('[data-sale-date]')?.addEventListener('change', refreshSaleDatetimeLabel);
 document.querySelector('[data-sale-time]')?.addEventListener('change', refreshSaleDatetimeLabel);
 refreshSaleDatetimeLabel();
@@ -396,6 +594,22 @@ document.querySelector('[data-quote-date]')?.addEventListener('change', refreshQ
 document.querySelector('[data-quote-time]')?.addEventListener('change', refreshQuoteDatetimeLabel);
 refreshQuoteDatetimeLabel();
 refreshAllQuoteTotals();
+
+document.addEventListener('change', (event) => {
+    const select = event.target.closest('[data-quote-service-select]');
+
+    if (select) {
+        refreshQuoteTotalForEditor(select.closest('[data-quote-service-editor]'));
+    }
+});
+
+document.addEventListener('input', (event) => {
+    const quantity = event.target.closest('[data-quote-service-qty]');
+
+    if (quantity) {
+        refreshQuoteTotalForEditor(quantity.closest('[data-quote-service-editor]'));
+    }
+});
 
 if (document.querySelector('[data-quote-modal]:not(.hidden)')) {
     document.body.classList.add('overflow-hidden');
@@ -496,13 +710,6 @@ document.addEventListener('click', (event) => {
         return;
     }
 
-    const quoteServiceSelect = event.target.closest('[data-quote-service-select]');
-    const quoteServiceQty = event.target.closest('[data-quote-service-qty]');
-
-    if (quoteServiceSelect || quoteServiceQty) {
-        refreshQuoteTotalForEditor((quoteServiceSelect || quoteServiceQty).closest('[data-quote-service-editor]'));
-    }
-
     const openButton = event.target.closest('[data-modal-open]');
     const closeButton = event.target.closest('[data-modal-close]');
     const tabButton = event.target.closest('[data-tab-target]');
@@ -590,3 +797,19 @@ document.addEventListener('click', async (event) => {
 });
 
 window.openOverlay = openOverlay;
+
+const syncAutomationSubjectVisibility = (form) => {
+    const channel = form.querySelector('[data-automation-channel]');
+    const subjectField = form.querySelector('[data-automation-subject-field]');
+
+    if (! channel || ! subjectField) {
+        return;
+    }
+
+    subjectField.classList.toggle('hidden', channel.value !== 'email');
+};
+
+document.querySelectorAll('[data-automation-form]').forEach((form) => {
+    syncAutomationSubjectVisibility(form);
+    form.querySelector('[data-automation-channel]')?.addEventListener('change', () => syncAutomationSubjectVisibility(form));
+});

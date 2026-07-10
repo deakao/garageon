@@ -45,6 +45,11 @@ class Customer extends Model
         return $this->hasMany(Quote::class);
     }
 
+    public function loyaltyLedger(): HasMany
+    {
+        return $this->hasMany(LoyaltyLedger::class);
+    }
+
     public function vehicles(): HasMany
     {
         return $this->hasMany(Vehicle::class);

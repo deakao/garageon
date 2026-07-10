@@ -19,6 +19,7 @@ class Service extends Model
         'thumbnail_path',
         'duration_minutes',
         'price',
+        'loyalty_points',
         'lifecycle_days',
         'category',
         'is_active',
@@ -28,6 +29,7 @@ class Service extends Model
     {
         return [
             'price' => 'decimal:2',
+            'loyalty_points' => 'integer',
             'is_active' => 'boolean',
         ];
     }

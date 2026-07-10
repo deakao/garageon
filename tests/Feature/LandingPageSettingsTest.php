@@ -7,7 +7,9 @@ use App\Models\LandingPage;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class LandingPageSettingsTest extends TestCase
@@ -44,6 +46,26 @@ class LandingPageSettingsTest extends TestCase
                 'analytics_head' => '<script>window.analyticsLoaded = true;</script>',
                 'conversion_pixel' => '<noscript>pixel ativo</noscript>',
                 'custom_javascript' => '<script>window.landingCustom = true;</script>',
+                'testimonials' => [
+                    [
+                        'name' => 'Marcos T.',
+                        'role' => 'Cliente desde 2023',
+                        'quote' => 'O carro saiu com brilho de showroom.',
+                        'rating' => 5,
+                    ],
+                    [
+                        'name' => 'Renata C.',
+                        'role' => 'SUV premium',
+                        'quote' => 'Agendei pela landing e o resultado ficou impecável.',
+                        'rating' => 4,
+                    ],
+                    [
+                        'name' => '',
+                        'role' => 'Ignorado',
+                        'quote' => 'Sem nome não deve aparecer.',
+                        'rating' => 5,
+                    ],
+                ],
                 'published' => '1',
             ])->assertRedirect();
 
@@ -53,6 +75,13 @@ class LandingPageSettingsTest extends TestCase
             'seo_title' => 'Estética automotiva premium em São Paulo',
             'cta_label' => 'Reservar agora',
         ]);
+
+        $landing = LandingPage::query()->where('tenant_id', $tenant->id)->firstOrFail();
+        $savedTestimonials = $landing->testimonials;
+
+        $this->assertCount(2, $savedTestimonials);
+        $this->assertSame('Marcos T.', $savedTestimonials[0]['name']);
+        $this->assertSame(4, $savedTestimonials[1]['rating']);
 
         $tenant->serviceCategories()->createMany([
             ['name' => 'Pacotes', 'slug' => 'pacotes'],
@@ -118,7 +147,37 @@ class LandingPageSettingsTest extends TestCase
             ->assertSee('Lavagem Técnica Premium')
             ->assertSee('Serviços Residenciais')
             ->assertSee('Limpeza e Higienização de Sofá')
-            ->assertDontSee('Serviço Inativo');
+            ->assertDontSee('Serviço Inativo')
+            ->assertSee('Depoimentos')
+            ->assertSee('O que nossos clientes dizem')
+            ->assertSee('Marcos T.')
+            ->assertSee('O carro saiu com brilho de showroom.')
+            ->assertSee('Renata C.')
+            ->assertDontSee('Sem nome não deve aparecer.');
+    }
+
+    public function test_tenant_user_can_upload_store_landing_hero_image(): void
+    {
+        Storage::fake('public');
+
+        [$tenant, $user] = $this->createTenantUser();
+
+        $this->actingAs($user)
+            ->put(route('settings.landing.update'), [
+                'headline' => 'Proteção premium para carros exigentes',
+                'subheadline' => 'Agendamento online para lavagem técnica, vitrificação e manutenção.',
+                'cta_label' => 'Reservar agora',
+                'hero_image_file' => UploadedFile::fake()->image('hero.jpg', 1400, 800),
+            ])->assertRedirect();
+
+        $heroImage = LandingPage::query()->where('tenant_id', $tenant->id)->value('hero_image');
+
+        $this->assertStringStartsWith('/storage/tenants/'.$tenant->id.'/landing/', $heroImage);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $heroImage));
+
+        $this->get(route('storefront', $tenant))
+            ->assertOk()
+            ->assertSee($heroImage, false);
     }
 
     public function test_storefront_booking_modal_can_create_public_appointment(): void
@@ -318,6 +377,75 @@ class LandingPageSettingsTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_storefront_whatsapp_fab_captures_lead_before_redirect(): void
+    {
+        [$tenant] = $this->createTenantUser();
+        $tenant->update(['whatsapp_phone' => '(11) 98888-4400']);
+
+        $this->get(route('storefront', $tenant))
+            ->assertOk()
+            ->assertSee('data-whatsapp-lead', false)
+            ->assertSee('data-whatsapp-fab', false)
+            ->assertSee(route('storefront.whatsapp-lead.store', $tenant), false);
+
+        $response = $this->postJson(route('storefront.whatsapp-lead.store', $tenant), [
+            'name' => 'Marina Costa',
+            'email' => 'marina@example.com',
+            'phone' => '(11) 97777-2002',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('whatsapp_url', 'https://wa.me/5511988884400?text='.rawurlencode('Olá! Vim pela landing page da Carbon Studio Detail. Meu nome é Marina Costa.'));
+
+        $this->assertDatabaseHas('customers', [
+            'tenant_id' => $tenant->id,
+            'name' => 'Marina Costa',
+            'email' => 'marina@example.com',
+            'phone' => '(11) 97777-2002',
+        ]);
+
+        $customer = $tenant->customers()->where('email', 'marina@example.com')->firstOrFail();
+
+        $this->assertContains('lead', $customer->tags);
+        $this->assertContains('landing-whatsapp', $customer->tags);
+    }
+
+    public function test_storefront_whatsapp_fab_is_hidden_without_store_phone(): void
+    {
+        [$tenant] = $this->createTenantUser();
+        $tenant->update(['whatsapp_phone' => null]);
+
+        $this->get(route('storefront', $tenant))
+            ->assertOk()
+            ->assertDontSee('data-whatsapp-fab', false);
+    }
+
+    public function test_custom_domain_whatsapp_lead_creates_customer(): void
+    {
+        [$tenant] = $this->createTenantUser();
+        $tenant->update([
+            'primary_domain' => 'www.carbonstudio.test',
+            'whatsapp_phone' => '+55 11 98888-4400',
+        ]);
+
+        $this->postJson('http://www.carbonstudio.test/whatsapp-lead', [
+            'name' => 'Igor Mendes',
+            'email' => 'igor@example.com',
+            'phone' => '11966667777',
+        ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonFragment(['whatsapp_url' => 'https://wa.me/5511988884400?text='.rawurlencode('Olá! Vim pela landing page da Carbon Studio Detail. Meu nome é Igor Mendes.')]);
+
+        $this->assertDatabaseHas('customers', [
+            'tenant_id' => $tenant->id,
+            'name' => 'Igor Mendes',
+            'email' => 'igor@example.com',
+        ]);
     }
 
     /**

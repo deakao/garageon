@@ -72,13 +72,19 @@
         <div class="mt-5 grid gap-3 border-t border-white/10 pt-5 ">
             <div class="space-y-2" data-calendar-list>
                 @forelse ($calendarAppointments->take(4) as $appointment)
-                    @php($appointmentStatus = ['scheduled' => 'Agendado'][$appointment->status] ?? str($appointment->status)->headline())
-                    <div data-calendar-event data-calendar-text="{{ \Illuminate\Support\Str::lower($appointment->customer->name.' '.$appointment->service->name.' '.$appointment->source.' '.$appointment->vehicle?->plate.' '.$appointment->vehicle?->brand.' '.$appointment->vehicle?->model) }}" class="flex flex-col gap-2 rounded-2xl border border-white/10 bg-black/35 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    @php($appointmentStatus = ['pending' => 'Pendente', 'scheduled' => 'Agendado', 'completed' => 'Concluído', 'cancelled' => 'Cancelado'][$appointment->status] ?? str($appointment->status)->headline())
+                    @php($customerPoints = number_format((int) ($appointment->customer->loyalty_points ?? 0), 0, ',', '.'))
+                    @php($vehicleLabel = $appointment->vehicle ? ' · '.$appointment->vehicle->plate.' '.$appointment->vehicle->brand.' '.$appointment->vehicle->model : '')
+                    @php($serviceLabel = $appointment->serviceSummary())
+                    <div data-calendar-event data-calendar-text="{{ \Illuminate\Support\Str::lower($appointment->customer->name.' '.$serviceLabel.' '.$appointment->source.' '.$appointment->vehicle?->plate.' '.$appointment->vehicle?->brand.' '.$appointment->vehicle?->model) }}" class="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/35 p-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <strong class="font-orbitron text-sm text-white">{{ $appointment->scheduled_at->format('d/m H:i') }} · {{ $appointment->service->name }}</strong>
-                            <span class="block text-xs text-zinc-400">{{ $appointment->customer->name }}@if($appointment->vehicle) · {{ $appointment->vehicle->plate }} {{ $appointment->vehicle->brand }} {{ $appointment->vehicle->model }}@endif · {{ $appointment->source }}</span>
+                            <strong class="font-orbitron text-sm text-white">{{ $appointment->scheduled_at->format('d/m H:i') }} · {{ $serviceLabel }}</strong>
+                            <span class="block text-xs text-zinc-400">{{ $appointment->customer->name }} · {{ $customerPoints }} pts{{ $vehicleLabel }} · {{ $appointment->source }}</span>
                         </div>
-                        <span class="rounded-full border border-yellow-300/25 px-3 py-1 text-xs font-black text-yellow-300">{{ $appointmentStatus }}</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="rounded-full border border-yellow-300/25 px-3 py-1 text-xs font-black text-yellow-300">{{ $appointmentStatus }}</span>
+                            @include('garageon.dashboard.appointment-actions', ['appointment' => $appointment])
+                        </div>
                     </div>
                 @empty
                     <div class="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-zinc-400">Sua agenda ainda está livre. Use o botão de novo agendamento para preencher os melhores horários.</div>
@@ -177,7 +183,7 @@
                     </div>
                     <div class="min-w-0">
                         <strong class="block truncate text-sm font-black text-white">{{ $customer->name }}</strong>
-                        <span class="mt-1 block text-xs text-zinc-400">{{ $customer->appointments_count }} agenda(s) · {{ $customer->quotes_count }} orçamento(s)</span>
+                        <span class="mt-1 block text-xs text-zinc-400">{{ number_format((int) ($customer->loyalty_points ?? 0), 0, ',', '.') }} pts · {{ $customer->appointments_count }} agenda(s) · {{ $customer->quotes_count }} orçamento(s)</span>
                     </div>
                 </div>
             @empty

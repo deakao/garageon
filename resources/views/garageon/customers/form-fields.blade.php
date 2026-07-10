@@ -15,6 +15,15 @@
     <input type="email" name="email" value="{{ old('email', $customer?->email) }}" maxlength="255" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30" placeholder="cliente@email.com">
 </label>
 
+@if ($customer)
+    <label class="block rounded-3xl border border-yellow-300/15 bg-yellow-300/[.04] p-4">
+        <span class="font-orbitron text-xs font-black uppercase tracking-[.2em] text-yellow-300">Pontos do cliente</span>
+        <span class="mt-1 block text-xs leading-5 text-zinc-400">Informe o saldo atual. O sistema registra só a diferença no extrato.</span>
+        <input type="number" name="loyalty_points" value="{{ old('loyalty_points', (int) ($customer->loyalty_points ?? 0)) }}" min="0" step="1" class="mt-3 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30" placeholder="0">
+        @error('loyalty_points') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+    </label>
+@endif
+
 <label class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm font-bold text-zinc-200">
     <input type="checkbox" name="marketing_consent" value="1" @checked(old('marketing_consent', $customer?->marketing_consent ?? true)) class="h-4 w-4 rounded border-white/20 bg-black text-yellow-300 focus:ring-yellow-300">
     Aceita receber lembretes e campanhas

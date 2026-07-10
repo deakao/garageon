@@ -38,6 +38,11 @@
             ];
         })->filter(fn (array $section) => $section['services']->isNotEmpty())->values();
         $servicesAnchor = $serviceSections->first()['id'] ?? 'servicos';
+        $testimonials = $landingPage?->publishedTestimonials() ?? [];
+        $storeWhatsappPhone = \App\Support\WhatsappPhone::normalize($tenant->whatsapp_phone);
+        $whatsappLeadAction = ($customDomain ?? false)
+            ? route('storefront.custom.whatsapp-lead.store')
+            : route('storefront.whatsapp-lead.store', $tenant);
         $firstBookableServiceId = array_key_first($bookingAvailability['services'] ?? []);
         $publicUrl = ($customDomain ?? false) ? url('/') : route('storefront', $tenant);
         $bookingFormAction = ($customDomain ?? false) ? route('storefront.custom.booking.store') : route('storefront.booking.store', $tenant);
@@ -58,7 +63,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     {!! $landingPage?->analytics_head !!}
 </head>
-<body class="bg-black text-white antialiased">
+<body class="marketing bg-black text-white antialiased">
     {!! $landingPage?->conversion_pixel !!}
 
     @if (session('booking_status'))
@@ -77,11 +82,14 @@
                 @endif
             </a>
 
-            <nav class="hidden items-center gap-7 text-xs font-black md:flex">
+            <nav class="hidden items-center gap-7 text-xs font-semibold md:flex">
                 <a href="#home" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">Home</a>
                 @foreach ($serviceSections->take(3) as $section)
                     <a href="#{{ $section['id'] }}" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">{{ $section['name'] }}</a>
                 @endforeach
+                @if (count($testimonials) > 0)
+                    <a href="#depoimentos" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">Depoimentos</a>
+                @endif
                 <a href="#contato" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">Contato</a>
                 <span aria-hidden="true" class="font-orbitron text-sm">◎</span>
             </nav>
@@ -93,9 +101,9 @@
             <div class="mx-auto grid max-w-7xl lg:min-h-[455px] lg:grid-cols-[1.05fr_.95fr]">
                 <div class="flex items-center px-6 py-16 lg:px-20 lg:py-20">
                     <div class="max-w-xl">
-                        <p class="text-xs font-bold text-white">{{ $eyebrow }}</p>
-                        <h1 class="mt-5 text-4xl font-black leading-tight text-[#ffcc00] md:text-5xl">{{ $headline }}</h1>
-                        <p class="mt-5 text-base leading-7 text-zinc-100">{{ $subheadline }}</p>
+                        <p class="text-xs font-medium text-white">{{ $eyebrow }}</p>
+                        <h1 class="title-orbitron mt-5 text-4xl leading-tight text-[#ffcc00] md:text-5xl">{{ $headline }}</h1>
+                        <p class="mt-5 text-base font-normal leading-7 text-zinc-100">{{ $subheadline }}</p>
 
                         <div class="mt-8 flex flex-col gap-4 sm:flex-row">
                             <a href="#{{ $servicesAnchor }}" class="inline-flex cursor-pointer items-center justify-center rounded-[10px] border-2 border-[#ffcc00] px-7 py-3 text-sm font-black text-[#ffcc00] transition hover:bg-[#ffcc00] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffcc00]">
@@ -119,7 +127,7 @@
                     <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,.55),transparent_38%),linear-gradient(180deg,transparent,rgba(0,0,0,.20))]"></div>
                     <div class="absolute left-8 top-10 rounded-xl bg-black/70 px-4 py-3 backdrop-blur">
                         <p class="font-orbitron text-sm font-black text-[#ffcc00]">{{ $heroBadgeTitle }}</p>
-                        <p class="mt-1 max-w-44 text-xs leading-5 text-white/80">{{ $heroBadgeBody }}</p>
+                        <p class="mt-1 max-w-44 text-xs font-normal leading-5 text-white/80">{{ $heroBadgeBody }}</p>
                     </div>
                 </div>
             </div>
@@ -128,7 +136,7 @@
         @forelse ($serviceSections as $section)
             <section id="{{ $section['id'] }}" class="{{ $section['is_package'] ? 'bg-[#242526]' : 'bg-black' }} px-6 py-16 lg:px-8">
                 <div class="mx-auto {{ $section['is_package'] ? 'max-w-6xl' : 'max-w-7xl' }}">
-                    <h2 class="text-center text-3xl font-black {{ $section['is_package'] ? 'uppercase' : '' }} text-[#ffcc00]">{{ $section['is_package'] ? \Illuminate\Support\Str::upper($section['name']) : $section['name'] }}</h2>
+                    <h2 class="title-orbitron text-center text-3xl {{ $section['is_package'] ? 'uppercase' : '' }} text-[#ffcc00]">{{ $section['is_package'] ? \Illuminate\Support\Str::upper($section['name']) : $section['name'] }}</h2>
 
                     @if ($section['is_package'])
                         <div class="mt-12 grid gap-8 md:grid-cols-3">
@@ -140,8 +148,8 @@
                                         ->values();
                                 @endphp
                                 <article class="flex min-h-full flex-col rounded-md bg-black p-8 shadow-[0_18px_30px_rgba(0,0,0,.35)] ring-1 ring-white/5">
-                                    <h3 class="text-center text-xl font-black text-white">{{ $service->name }}</h3>
-                                    <ul class="mt-6 grow space-y-3 text-sm leading-6 text-zinc-200">
+                                    <h3 class="title-orbitron text-center text-xl text-white">{{ $service->name }}</h3>
+                                    <ul class="mt-6 grow space-y-3 text-sm font-normal leading-6 text-zinc-200">
                                         @forelse ($packageItems as $item)
                                             <li class="flex gap-2">
                                                 <span class="mt-1 text-[#ffcc00]">✓</span>
@@ -166,8 +174,8 @@
                                 <article class="overflow-hidden rounded bg-[#202123] shadow-[0_16px_30px_rgba(0,0,0,.35)] ring-1 ring-white/5">
                                     <div class="h-44 bg-cover bg-center" style="background-image: url('{{ $image }}')"></div>
                                     <div class="p-5">
-                                        <h3 class="min-h-12 text-base font-black leading-6 text-[#ffcc00]">{{ $service->name }}</h3>
-                                        <p class="mt-4 min-h-28 text-sm leading-6 text-zinc-300">{{ $service->description }}</p>
+                                        <h3 class="title-orbitron min-h-12 text-base leading-6 text-[#ffcc00]">{{ $service->name }}</h3>
+                                        <p class="mt-4 min-h-28 text-sm font-normal leading-6 text-zinc-300">{{ $service->description }}</p>
                                         <p class="mt-5 text-lg font-black text-white">R$ {{ number_format((float) $service->price, 2, ',', '.') }}</p>
                                         <button type="button" data-booking-open="{{ $service->id }}" class="mt-5 inline-flex cursor-pointer rounded-full bg-[#ffcc00] px-4 py-2 text-xs font-black text-black transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#ffcc00]">Agendar Serviço</button>
                                     </div>
@@ -185,6 +193,37 @@
                 </div>
             </section>
         @endforelse
+
+        @if (count($testimonials) > 0)
+            <section id="depoimentos" class="bg-[#242526] px-6 py-16 lg:px-8" aria-labelledby="testimonials-title">
+                <div class="mx-auto max-w-6xl">
+                    <div class="mx-auto max-w-3xl text-center">
+                        <p class="text-xs font-medium uppercase tracking-[.24em] text-[#ffcc00]">Depoimentos</p>
+                        <h2 id="testimonials-title" class="title-orbitron mt-4 text-3xl text-white md:text-4xl">O que nossos clientes dizem</h2>
+                        <p class="mt-3 text-sm font-normal leading-6 text-zinc-300">Resultados reais de quem confiou o carro à {{ $tenant->name }}.</p>
+                    </div>
+
+                    <div class="mt-12 grid gap-6 md:grid-cols-2 {{ count($testimonials) > 2 ? 'lg:grid-cols-3' : '' }}">
+                        @foreach ($testimonials as $testimonial)
+                            <figure class="flex h-full flex-col rounded-md bg-black p-7 shadow-[0_18px_30px_rgba(0,0,0,.35)] ring-1 ring-white/5">
+                                <div class="text-[#ffcc00]" aria-label="{{ $testimonial['rating'] }} de 5 estrelas">
+                                    @for ($star = 1; $star <= 5; $star++)
+                                        <span aria-hidden="true">{{ $star <= $testimonial['rating'] ? '★' : '☆' }}</span>
+                                    @endfor
+                                </div>
+                                <blockquote class="mt-5 grow text-sm font-normal leading-7 text-zinc-200">"{{ $testimonial['quote'] }}"</blockquote>
+                                <figcaption class="mt-6 border-t border-white/10 pt-5">
+                                    <strong class="block text-sm font-semibold text-white">{{ $testimonial['name'] }}</strong>
+                                    @if ($testimonial['role'])
+                                        <span class="mt-1 block text-xs font-medium text-zinc-500">{{ $testimonial['role'] }}</span>
+                                    @endif
+                                </figcaption>
+                            </figure>
+                        @endforeach
+                    </div>
+                </div>
+            </section>
+        @endif
     </main>
 
     @if (! empty($bookingAvailability['services']))
@@ -209,7 +248,7 @@
 
                         <div class="mt-10 border-t border-slate-200 pt-8">
                             <p class="text-sm font-bold text-slate-500">Serviço selecionado</p>
-                            <h2 data-booking-service-name class="mt-3 text-3xl font-black leading-tight text-[#0b2b4c]">Selecione um serviço</h2>
+                            <h2 data-booking-service-name class="title-orbitron mt-3 text-3xl leading-tight text-[#0b2b4c]">Selecione um serviço</h2>
                             <p data-booking-service-category class="mt-3 text-sm font-bold text-[#0b2b4c]/60"></p>
 
                             <div class="mt-8 space-y-4 text-sm font-bold text-slate-600">
@@ -234,8 +273,8 @@
                     <section class="border-b border-slate-200 bg-[#fbfcff] p-6 lg:border-b-0 lg:border-r lg:p-8">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <p class="text-xs font-black uppercase tracking-[.24em] text-[#ffcc00]">Agenda online</p>
-                                <h2 class="mt-2 text-2xl font-black text-[#0b2b4c]">Selecione data e horário</h2>
+                                <p class="text-xs font-medium uppercase tracking-[.24em] text-[#ffcc00]">Agenda online</p>
+                                <h2 class="title-orbitron mt-2 text-2xl text-[#0b2b4c]">Selecione data e horário</h2>
                             </div>
                             <button type="button" data-booking-close class="hidden h-10 w-10 cursor-pointer place-items-center rounded-full border border-slate-200 text-xl text-slate-500 transition hover:border-[#ffcc00] hover:text-black lg:grid" aria-label="Fechar">×</button>
                         </div>
@@ -277,9 +316,9 @@
                     <div class="w-[min(92vw,620px)] rounded-[28px] bg-white p-5 text-[#0b2b4c] shadow-2xl sm:p-7">
                         <div class="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
                             <div>
-                                <p class="text-xs font-black uppercase tracking-[.24em] text-[#ffcc00]">Confirmar agendamento</p>
-                                <h3 class="mt-2 text-2xl font-black">Seus dados</h3>
-                                <p class="mt-2 text-sm leading-6 text-slate-600">Informe seus dados para a loja confirmar o horário escolhido.</p>
+                                <p class="text-xs font-medium uppercase tracking-[.24em] text-[#ffcc00]">Confirmar agendamento</p>
+                                <h3 class="title-orbitron mt-2 text-2xl">Seus dados</h3>
+                                <p class="mt-2 text-sm font-normal leading-6 text-slate-600">Informe seus dados para a loja confirmar o horário escolhido.</p>
                             </div>
                             <button type="button" data-booking-customer-close class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 text-xl text-slate-500 transition hover:border-[#ffcc00] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffcc00]" aria-label="Voltar para horários">×</button>
                         </div>
@@ -343,28 +382,82 @@
             </div>
 
             <div>
-                <h3 class="text-sm font-black">Funcionamento</h3>
-                <p class="mt-4 text-sm leading-6">Segunda a sábado<br>8:30 - 18h</p>
-                <p class="mt-4 text-xs font-bold">Agendamento online 24/7</p>
+                <h3 class="font-orbitron text-sm font-semibold">Funcionamento</h3>
+                <p class="mt-4 text-sm font-normal leading-6">Segunda a sábado<br>8:30 - 18h</p>
+                <p class="mt-4 text-xs font-medium">Agendamento online 24/7</p>
             </div>
 
             <div>
-                <h3 class="text-sm font-black">Fale Conosco</h3>
-                <p class="mt-4 text-sm leading-6">Tel: {{ $tenant->whatsapp_phone ?: 'cadastre o WhatsApp da loja' }}</p>
-                <p class="mt-4 text-xs font-bold">{{ $tenant->primary_domain ?: route('storefront', $tenant) }}</p>
+                <h3 class="font-orbitron text-sm font-semibold">Fale Conosco</h3>
+                <p class="mt-4 text-sm font-normal leading-6">Tel: {{ $tenant->whatsapp_phone ?: 'cadastre o WhatsApp da loja' }}</p>
+                <p class="mt-4 text-xs font-medium">{{ $tenant->primary_domain ?: route('storefront', $tenant) }}</p>
             </div>
 
             <div>
-                <h3 class="text-sm font-black">Links úteis</h3>
-                <div class="mt-4 grid gap-2 text-sm">
+                <h3 class="font-orbitron text-sm font-semibold">Links úteis</h3>
+                <div class="mt-4 grid gap-2 text-sm font-normal">
                     <a href="#{{ $servicesAnchor }}" class="cursor-pointer hover:text-white">Serviços</a>
                     <a href="{{ route('booking', $tenant) }}" class="cursor-pointer hover:text-white">Contato</a>
                     <a href="#home" class="cursor-pointer hover:text-white">Mapa do site</a>
                 </div>
             </div>
         </div>
-        <p class="mx-auto mt-12 max-w-6xl text-center text-xs font-bold">Todos os direitos reservados © {{ now()->year }} {{ $tenant->name }}</p>
+        <p class="mx-auto mt-12 max-w-6xl text-center text-xs font-medium">Todos os direitos reservados © {{ now()->year }} {{ $tenant->name }}</p>
     </footer>
+
+    @if ($storeWhatsappPhone !== '')
+        <div class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3" data-whatsapp-lead>
+            <div data-whatsapp-balloon hidden class="w-[min(92vw,340px)] overflow-hidden rounded-[24px] bg-white shadow-[0_24px_60px_rgba(0,0,0,.45)] ring-1 ring-black/10">
+                <div class="flex items-center gap-3 bg-[#075e54] px-4 py-3 text-white">
+                    <div class="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-white/15">
+                        @if ($tenant->logoUrl())
+                            <img src="{{ $tenant->logoUrl() }}" alt="" class="h-full w-full object-cover">
+                        @else
+                            <span class="font-orbitron text-[10px] font-black">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($tenant->name, 0, 2)) }}</span>
+                        @endif
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-orbitron text-sm font-semibold">{{ $tenant->name }}</p>
+                        <p class="text-[11px] font-normal text-emerald-100">online agora</p>
+                    </div>
+                    <button type="button" data-whatsapp-close class="grid h-8 w-8 cursor-pointer place-items-center rounded-full text-lg text-white/80 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40" aria-label="Fechar">×</button>
+                </div>
+
+                <div class="bg-[#e5ddd5] px-3 py-4" style="background-image: radial-gradient(rgba(0,0,0,.04) 1px, transparent 1px); background-size: 18px 18px;">
+                    <div class="max-w-[90%] rounded-lg rounded-tl-none bg-white px-3 py-2 text-[13px] font-normal leading-5 text-[#111b21] shadow-sm">
+                        Olá! 👋 Antes de abrir o WhatsApp, deixe seus dados para a {{ $tenant->name }} te atender melhor.
+                        <span class="mt-1 block text-right text-[10px] font-normal text-slate-400">agora</span>
+                    </div>
+
+                    <form data-whatsapp-lead-form action="{{ $whatsappLeadAction }}" method="POST" class="mt-3 space-y-2 rounded-lg bg-white p-3 shadow-sm">
+                        @csrf
+                        <label class="block">
+                            <span class="sr-only">Nome</span>
+                            <input name="name" required maxlength="255" placeholder="Seu nome" autocomplete="name" class="w-full rounded-lg border border-slate-200 bg-[#f0f2f5] px-3 py-2.5 text-sm font-normal text-[#111b21] outline-none focus:border-[#25d366] focus:ring-2 focus:ring-[#25d366]/25">
+                        </label>
+                        <label class="block">
+                            <span class="sr-only">Email</span>
+                            <input type="email" name="email" required maxlength="255" placeholder="Seu e-mail" autocomplete="email" class="w-full rounded-lg border border-slate-200 bg-[#f0f2f5] px-3 py-2.5 text-sm font-normal text-[#111b21] outline-none focus:border-[#25d366] focus:ring-2 focus:ring-[#25d366]/25">
+                        </label>
+                        <label class="block">
+                            <span class="sr-only">WhatsApp</span>
+                            <input name="phone" required maxlength="30" placeholder="(11) 99999-9999" autocomplete="tel" inputmode="tel" data-phone-mask class="w-full rounded-lg border border-slate-200 bg-[#f0f2f5] px-3 py-2.5 text-sm font-normal text-[#111b21] outline-none focus:border-[#25d366] focus:ring-2 focus:ring-[#25d366]/25">
+                        </label>
+                        <p data-whatsapp-error hidden class="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600"></p>
+                        <button type="submit" data-whatsapp-submit class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#25d366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25d366] disabled:cursor-not-allowed disabled:opacity-60">
+                            Continuar no WhatsApp
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <button type="button" data-whatsapp-fab class="grid h-14 w-14 cursor-pointer place-items-center rounded-full bg-[#25d366] text-white shadow-[0_12px_30px_rgba(37,211,102,.45)] transition hover:scale-105 hover:bg-[#1ebe57] focus:outline-none focus:ring-2 focus:ring-[#25d366] focus:ring-offset-2 focus:ring-offset-black" aria-label="Falar no WhatsApp" aria-expanded="false">
+                <svg viewBox="0 0 32 32" class="h-7 w-7" aria-hidden="true" fill="currentColor">
+                    <path d="M16.02 3C9.4 3 4.02 8.36 4.02 14.96c0 2.1.55 4.14 1.6 5.95L4 29l8.3-1.57a12 12 0 0 0 3.72.58h.01c6.62 0 12-5.36 12-11.96C28.03 8.36 22.64 3 16.02 3zm6.98 17.05c-.3.84-1.73 1.55-2.42 1.65-.62.09-1.4.13-2.26-.14-.52-.16-1.19-.39-2.05-.76-3.61-1.56-5.96-5.2-6.14-5.44-.18-.24-1.47-1.95-1.47-3.72s.93-2.64 1.26-3c.33-.36.72-.45.96-.45h.7c.22 0 .52-.08.81.62.3.73 1.02 2.5 1.11 2.68.09.18.15.4.03.64-.12.24-.18.4-.36.61-.18.22-.38.48-.54.65-.18.18-.36.37-.15.73.2.36.9 1.48 1.93 2.4 1.33 1.18 2.45 1.55 2.81 1.73.36.18.57.15.78-.09.21-.24.9-1.05 1.14-1.41.24-.36.48-.3.81-.18.33.12 2.1.99 2.46 1.17.36.18.6.27.69.42.09.15.09.87-.21 1.71z"/>
+                </svg>
+            </button>
+        </div>
+    @endif
 
     @if (! empty($bookingAvailability['services']))
         <script>
@@ -610,6 +703,79 @@
                         openCustomerPanel();
                     }
                 }
+            })();
+        </script>
+    @endif
+
+    @if ($storeWhatsappPhone !== '')
+        <script>
+            (() => {
+                const root = document.querySelector('[data-whatsapp-lead]');
+                const fab = root?.querySelector('[data-whatsapp-fab]');
+                const balloon = root?.querySelector('[data-whatsapp-balloon]');
+                const closeButton = root?.querySelector('[data-whatsapp-close]');
+                const form = root?.querySelector('[data-whatsapp-lead-form]');
+                const errorBox = root?.querySelector('[data-whatsapp-error]');
+                const submitButton = root?.querySelector('[data-whatsapp-submit]');
+
+                if (! root || ! fab || ! balloon || ! form) {
+                    return;
+                }
+
+                const setOpen = (open) => {
+                    balloon.hidden = ! open;
+                    fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+                    if (open) {
+                        form.querySelector('input[name="name"]')?.focus();
+                    }
+                };
+
+                fab.addEventListener('click', () => setOpen(balloon.hidden));
+                closeButton?.addEventListener('click', () => setOpen(false));
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && ! balloon.hidden) {
+                        setOpen(false);
+                    }
+                });
+
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    errorBox.hidden = true;
+                    errorBox.textContent = '';
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Abrindo WhatsApp...';
+
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: new FormData(form),
+                        });
+
+                        const payload = await response.json().catch(() => ({}));
+
+                        if (! response.ok) {
+                            const firstError = payload.errors
+                                ? Object.values(payload.errors).flat()[0]
+                                : payload.message;
+
+                            throw new Error(firstError || 'Não foi possível salvar seus dados.');
+                        }
+
+                        window.location.href = payload.whatsapp_url;
+                    } catch (error) {
+                        errorBox.textContent = error.message || 'Não foi possível salvar seus dados.';
+                        errorBox.hidden = false;
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Continuar no WhatsApp';
+                    }
+                });
             })();
         </script>
     @endif

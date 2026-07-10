@@ -11,7 +11,7 @@
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),radial-gradient(circle_at_100%_10%,rgba(255,255,255,.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
         <div class="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.9)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:42px_42px]"></div>
 
-        <div class="relative mx-auto max-w-7xl">
+        <div class="relative mx-auto max-w-[1800px]">
             @include('garageon.dashboard.header')
 
             @if (session('status'))
@@ -81,6 +81,7 @@
                                 <th>Veículo</th>
                                 <th>WhatsApp</th>
                                 <th>E-mail</th>
+                                <th>Pontos</th>
                                 <th>Entrada</th>
                                 <th>Ações</th>
                             </tr>
@@ -111,6 +112,9 @@
                                     </td>
                                     <td>{{ $customer->phone }}</td>
                                     <td>{{ $customer->email ?? 'E-mail não informado' }}</td>
+                                    <td>
+                                        <span class="inline-flex rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-xs font-black text-yellow-200">{{ number_format((int) ($customer->loyalty_points ?? 0), 0, ',', '.') }} pts</span>
+                                    </td>
                                     <td>{{ $customer->created_at->format('d/m/Y') }}</td>
                                     <td>
                                         <div class="flex flex-wrap justify-end gap-2">

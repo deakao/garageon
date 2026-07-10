@@ -8,6 +8,9 @@
 </head>
 <body class="marketing min-h-screen bg-[#070707] text-white antialiased">
     @php
+        $defaultTestimonials = [
+            ['name' => '', 'role' => '', 'quote' => '', 'rating' => 5],
+        ];
         $landingValues = [
             'eyebrow' => old('eyebrow', $landingPage?->eyebrow ?? 'Estética automotiva premium'),
             'headline' => old('headline', $landingPage?->headline ?? 'Bem vindos à '.$tenant->name),
@@ -23,15 +26,27 @@
             'conversion_pixel' => old('conversion_pixel', $landingPage?->conversion_pixel ?? ''),
             'custom_javascript' => old('custom_javascript', $landingPage?->custom_javascript ?? ''),
         ];
+        $testimonials = collect(old('testimonials', $landingPage?->testimonials ?: $defaultTestimonials))
+            ->map(fn ($item) => [
+                'name' => (string) ($item['name'] ?? ''),
+                'role' => (string) ($item['role'] ?? ''),
+                'quote' => (string) ($item['quote'] ?? ''),
+                'rating' => max(1, min(5, (int) ($item['rating'] ?? 5))),
+            ])
+            ->values();
+        if ($testimonials->isEmpty()) {
+            $testimonials = collect($defaultTestimonials);
+        }
         $activeServicesCount = $tenant->services->where('is_active', true)->count();
         $categoryCount = $tenant->serviceCategories->count();
+        $filledTestimonialsCount = $testimonials->filter(fn ($item) => filled($item['name']) && filled($item['quote']))->count();
     @endphp
 
     <main class="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(250,204,21,.18),transparent_25%),radial-gradient(circle_at_100%_10%,rgba(255,255,255,.10),transparent_24%),linear-gradient(180deg,rgba(255,255,255,.04),transparent_44%)]"></div>
         <div class="pointer-events-none absolute inset-0 opacity-[.05] [background-image:linear-gradient(rgba(255,255,255,.9)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:42px_42px]"></div>
 
-        <div class="relative mx-auto max-w-7xl">
+        <div class="relative mx-auto max-w-[1800px]">
             @include('garageon.dashboard.header')
 
             @if (session('status'))
@@ -53,10 +68,14 @@
                         <h1 class="mt-2 text-3xl font-black">Página de venda da loja</h1>
                         <p class="mt-3 text-sm leading-6 text-zinc-400">Ajuste promessa, SEO e pixels em um cockpit único. O preview responde enquanto você digita.</p>
 
-                        <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                        <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <div class="rounded-2xl border border-white/10 bg-black/35 p-4">
                                 <p class="font-orbitron text-2xl font-black text-yellow-300">{{ number_format($categoryCount, 0, ',', '.') }}</p>
                                 <p class="mt-1 text-xs font-bold text-zinc-400">categorias na vitrine</p>
+                            </div>
+                            <div class="rounded-2xl border border-white/10 bg-black/35 p-4">
+                                <p class="font-orbitron text-2xl font-black text-yellow-300">{{ number_format($filledTestimonialsCount, 0, ',', '.') }}</p>
+                                <p class="mt-1 text-xs font-bold text-zinc-400">depoimentos</p>
                             </div>
                             <div class="rounded-2xl border border-white/10 bg-black/35 p-4">
                                 <p class="font-orbitron text-2xl font-black text-yellow-300">SEO</p>
@@ -107,7 +126,7 @@
                     </article>
                 </aside>
 
-                <form method="POST" action="{{ route('settings.landing.update') }}" class="grid gap-6" data-landing-editor>
+                <form method="POST" action="{{ route('settings.landing.update') }}" enctype="multipart/form-data" class="grid gap-6" data-landing-editor>
                     @csrf
                     @method('PUT')
 
@@ -143,12 +162,21 @@
                                 @error('subheadline') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
                             </label>
 
-                            <label class="block md:col-span-2">
-                                <span class="text-sm font-bold text-zinc-200">Imagem principal do topo (URL)</span>
-                                <input name="hero_image" value="{{ $landingValues['hero_image'] }}" type="url" maxlength="2048" data-preview-source="hero_image" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
-                                <span class="mt-2 block text-xs text-zinc-500">Use uma foto horizontal do carro/oficina para reproduzir o impacto visual do print.</span>
-                                @error('hero_image') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
-                            </label>
+                            <div class="grid gap-4 rounded-3xl border border-yellow-300/15 bg-yellow-300/[.04] p-4 md:col-span-2 md:grid-cols-2">
+                                <label class="block">
+                                    <span class="text-sm font-bold text-zinc-200">Upload da imagem principal</span>
+                                    <input type="file" name="hero_image_file" accept="image/png,image/jpeg,image/webp" data-preview-file="hero_image" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-zinc-300 file:mr-4 file:rounded-full file:border-0 file:bg-yellow-300 file:px-4 file:py-2 file:text-sm file:font-black file:text-black hover:file:bg-white focus:outline-none focus:ring-2 focus:ring-yellow-300/30">
+                                    <span class="mt-2 block text-xs leading-5 text-zinc-500">Envie JPG, PNG ou WebP até 2 MB. Foto horizontal funciona melhor.</span>
+                                    @error('hero_image_file') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                </label>
+
+                                <label class="block">
+                                    <span class="text-sm font-bold text-zinc-200">Ou usar imagem por URL</span>
+                                    <input name="hero_image" value="{{ $landingValues['hero_image'] }}" type="text" maxlength="2048" data-preview-source="hero_image" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                    <span class="mt-2 block text-xs text-zinc-500">Se enviar arquivo, ele substitui essa URL ao salvar.</span>
+                                    @error('hero_image') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                </label>
+                            </div>
 
                             <label class="block">
                                 <span class="text-sm font-bold text-zinc-200">Texto do botão principal</span>
@@ -187,6 +215,101 @@
                         <a href="{{ route('settings.services') }}" class="mt-5 inline-flex cursor-pointer rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-yellow-300">
                             Gerenciar serviços
                         </a>
+                    </section>
+
+                    <section class="rounded-[28px] border border-white/10 bg-white/[.05] p-6 shadow-2xl shadow-black/30">
+                        <div class="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p class="font-orbitron text-xs font-black uppercase tracking-[.24em] text-yellow-300">Depoimentos</p>
+                                <h2 class="mt-2 text-2xl font-black">Prova social na landing</h2>
+                                <p class="mt-1 text-sm text-zinc-400">Mostre o que clientes reais dizem. A seção só aparece na loja quando houver nome e depoimento preenchidos.</p>
+                            </div>
+                            <button type="button" data-testimonial-add class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-yellow-300/30 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                                Adicionar depoimento
+                            </button>
+                        </div>
+
+                        <div class="mt-5 grid gap-4" data-testimonials-list>
+                            @foreach ($testimonials as $index => $testimonial)
+                                <article class="rounded-3xl border border-white/10 bg-black/35 p-5" data-testimonial-item>
+                                    <div class="flex items-start justify-between gap-3">
+                                        <p class="font-orbitron text-xs font-black uppercase tracking-[.18em] text-zinc-500">Depoimento <span data-testimonial-index>{{ $index + 1 }}</span></p>
+                                        <button type="button" data-testimonial-remove class="cursor-pointer rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 transition hover:border-red-300/40 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-300/40">
+                                            Remover
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                        <label class="block">
+                                            <span class="text-sm font-bold text-zinc-200">Nome do cliente</span>
+                                            <input name="testimonials[{{ $index }}][name]" value="{{ $testimonial['name'] }}" maxlength="80" placeholder="Ex.: Marcos T." class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                            @error('testimonials.'.$index.'.name') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                        </label>
+
+                                        <label class="block">
+                                            <span class="text-sm font-bold text-zinc-200">Cargo ou contexto</span>
+                                            <input name="testimonials[{{ $index }}][role]" value="{{ $testimonial['role'] }}" maxlength="80" placeholder="Ex.: Cliente desde 2023" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                            @error('testimonials.'.$index.'.role') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                        </label>
+
+                                        <label class="block md:col-span-2">
+                                            <span class="text-sm font-bold text-zinc-200">Depoimento</span>
+                                            <textarea name="testimonials[{{ $index }}][quote]" rows="3" maxlength="500" placeholder="O que o cliente falou sobre o atendimento ou o resultado." class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">{{ $testimonial['quote'] }}</textarea>
+                                            @error('testimonials.'.$index.'.quote') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                        </label>
+
+                                        <label class="block md:col-span-2">
+                                            <span class="text-sm font-bold text-zinc-200">Nota</span>
+                                            <select name="testimonials[{{ $index }}][rating]" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                                @for ($rating = 5; $rating >= 1; $rating--)
+                                                    <option value="{{ $rating }}" @selected((int) $testimonial['rating'] === $rating)>{{ $rating }} estrela{{ $rating > 1 ? 's' : '' }}</option>
+                                                @endfor
+                                            </select>
+                                            @error('testimonials.'.$index.'.rating') <span class="mt-2 block text-xs text-red-300">{{ $message }}</span> @enderror
+                                        </label>
+                                    </div>
+                                </article>
+                            @endforeach
+                        </div>
+
+                        <template data-testimonial-template>
+                            <article class="rounded-3xl border border-white/10 bg-black/35 p-5" data-testimonial-item>
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="font-orbitron text-xs font-black uppercase tracking-[.18em] text-zinc-500">Depoimento <span data-testimonial-index>1</span></p>
+                                    <button type="button" data-testimonial-remove class="cursor-pointer rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 transition hover:border-red-300/40 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-300/40">
+                                        Remover
+                                    </button>
+                                </div>
+
+                                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                    <label class="block">
+                                        <span class="text-sm font-bold text-zinc-200">Nome do cliente</span>
+                                        <input data-field="name" maxlength="80" placeholder="Ex.: Marcos T." class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                    </label>
+
+                                    <label class="block">
+                                        <span class="text-sm font-bold text-zinc-200">Cargo ou contexto</span>
+                                        <input data-field="role" maxlength="80" placeholder="Ex.: Cliente desde 2023" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                    </label>
+
+                                    <label class="block md:col-span-2">
+                                        <span class="text-sm font-bold text-zinc-200">Depoimento</span>
+                                        <textarea data-field="quote" rows="3" maxlength="500" placeholder="O que o cliente falou sobre o atendimento ou o resultado." class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30"></textarea>
+                                    </label>
+
+                                    <label class="block md:col-span-2">
+                                        <span class="text-sm font-bold text-zinc-200">Nota</span>
+                                        <select data-field="rating" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                            <option value="5" selected>5 estrelas</option>
+                                            <option value="4">4 estrelas</option>
+                                            <option value="3">3 estrelas</option>
+                                            <option value="2">2 estrelas</option>
+                                            <option value="1">1 estrela</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </article>
+                        </template>
                     </section>
 
                     <section class="rounded-[28px] border border-white/10 bg-white/[.05] p-6 shadow-2xl shadow-black/30">
@@ -272,6 +395,76 @@
                 target.textContent = field.value || '...';
             });
         });
+
+        document.querySelector('[data-preview-file="hero_image"]')?.addEventListener('change', (event) => {
+            const image = event.target.files?.[0];
+            const imageTarget = document.querySelector('[data-preview-image]');
+
+            if (image && imageTarget) {
+                imageTarget.style.backgroundImage = `url('${URL.createObjectURL(image)}')`;
+            }
+        });
+
+        (() => {
+            const list = document.querySelector('[data-testimonials-list]');
+            const template = document.querySelector('[data-testimonial-template]');
+            const addButton = document.querySelector('[data-testimonial-add]');
+            const maxItems = 12;
+
+            if (!list || !template || !addButton) {
+                return;
+            }
+
+            const reindex = () => {
+                list.querySelectorAll('[data-testimonial-item]').forEach((item, index) => {
+                    item.querySelector('[data-testimonial-index]').textContent = String(index + 1);
+
+                    item.querySelectorAll('[data-field], [name]').forEach((field) => {
+                        const key = field.dataset.field || (field.getAttribute('name') || '').match(/\[([^\]]+)\]$/)?.[1];
+
+                        if (!key) {
+                            return;
+                        }
+
+                        field.setAttribute('name', `testimonials[${index}][${key}]`);
+                    });
+                });
+            };
+
+            const bindRemove = (item) => {
+                item.querySelector('[data-testimonial-remove]')?.addEventListener('click', () => {
+                    if (list.querySelectorAll('[data-testimonial-item]').length <= 1) {
+                        item.querySelectorAll('input, textarea').forEach((field) => {
+                            field.value = '';
+                        });
+                        const rating = item.querySelector('select');
+                        if (rating) {
+                            rating.value = '5';
+                        }
+                        return;
+                    }
+
+                    item.remove();
+                    reindex();
+                });
+            };
+
+            list.querySelectorAll('[data-testimonial-item]').forEach(bindRemove);
+
+            addButton.addEventListener('click', () => {
+                if (list.querySelectorAll('[data-testimonial-item]').length >= maxItems) {
+                    return;
+                }
+
+                const item = template.content.firstElementChild.cloneNode(true);
+                list.appendChild(item);
+                bindRemove(item);
+                reindex();
+                item.querySelector('input')?.focus();
+            });
+
+            reindex();
+        })();
     </script>
 </body>
 </html>

@@ -25,8 +25,9 @@
                 aria-label="Agendar em {{ $weekDate->format('d/m') }} às {{ $slotTime }}"
             >
                 @forelse ($slotAppointments as $appointment)
-                    <div data-calendar-event data-calendar-text="{{ \Illuminate\Support\Str::lower($appointment->customer->name.' '.$appointment->service->name.' '.$appointment->source.' '.$appointment->vehicle?->plate.' '.$appointment->vehicle?->brand.' '.$appointment->vehicle?->model) }}" class="rounded-xl bg-yellow-300 px-2 py-1 text-[11px] font-black leading-4 text-black">
-                        {{ $appointment->scheduled_at->format('H:i') }} {{ $appointment->service->name }}
+                    @php($serviceLabel = $appointment->serviceSummary())
+                    <div data-calendar-event data-calendar-text="{{ \Illuminate\Support\Str::lower($appointment->customer->name.' '.$serviceLabel.' '.$appointment->source.' '.$appointment->vehicle?->plate.' '.$appointment->vehicle?->brand.' '.$appointment->vehicle?->model) }}" class="rounded-xl bg-yellow-300 px-2 py-1 text-[11px] font-black leading-4 text-black">
+                        {{ $appointment->scheduled_at->format('H:i') }} {{ $serviceLabel }} · {{ number_format((int) ($appointment->customer->loyalty_points ?? 0), 0, ',', '.') }} pts
                     </div>
                 @empty
                     <span class="block text-[11px] text-zinc-500">Horário livre</span>

@@ -22,9 +22,40 @@ class QuoteCrudTest extends TestCase
         $this->actingAs($user)
             ->get(route('quotes.index'))
             ->assertOk()
-            ->assertSee('Orçamentos')
+            ->assertSee('Funil de orçamentos')
+            ->assertSee('Enviado')
+            ->assertSee('Aguardando')
+            ->assertSee('Aceito')
+            ->assertSee('Expirado')
             ->assertSee('Marina Souza')
             ->assertSee('ABC1D23');
+    }
+
+    public function test_tenant_user_can_update_quote_status_from_kanban(): void
+    {
+        [$tenant, $user, $service] = $this->createTenantWithService();
+
+        $this->actingAs($user)->post(route('quotes.store'), $this->quotePayload($service));
+
+        $quote = Quote::query()->where('tenant_id', $tenant->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->patchJson(route('quotes.status', $quote), ['status' => 'pending'])
+            ->assertOk()
+            ->assertJson([
+                'status' => 'pending',
+            ]);
+
+        $this->assertSame('pending', $quote->fresh()->status);
+
+        $this->actingAs($user)
+            ->patchJson(route('quotes.status', $quote), ['status' => 'accepted'])
+            ->assertOk()
+            ->assertJson([
+                'status' => 'accepted',
+            ]);
+
+        $this->assertSame('accepted', $quote->fresh()->status);
     }
 
     public function test_tenant_user_can_update_quote(): void

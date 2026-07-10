@@ -48,7 +48,7 @@
                 <article class="rounded-2xl border border-white/10 bg-[#151515] p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <strong class="block text-sm font-black text-white">{{ $appointment->service?->name ?? 'Serviço removido' }}</strong>
+                            <strong class="block text-sm font-black text-white">{{ $appointment->serviceSummary() }}</strong>
                             <span class="mt-1 block text-xs text-zinc-500">{{ $appointment->scheduled_at->format('d/m/Y H:i') }}</span>
                         </div>
                         <span class="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[.08em] text-zinc-300">{{ $statusLabels[$appointment->status] ?? str($appointment->status)->headline() }}</span>
