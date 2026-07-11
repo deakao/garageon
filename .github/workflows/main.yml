@@ -22,7 +22,7 @@ jobs:
     steps:
       - shell: bash
         run: |
-          cd /var/www/garageon
+          cd /home/garageon/www/
           docker compose exec app composer install
           npm install
           npm run build
