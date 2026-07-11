@@ -62,6 +62,8 @@ class SignupRequestController extends Controller
                 'whatsapp_phone' => $validated['whatsapp_phone'],
                 'brand_colors' => ['primary' => '#050505', 'accent' => '#facc15', 'surface' => '#ffffff'],
                 'trial_ends_at' => now()->addDays(14),
+                'onboarding_step' => 'hours',
+                'onboarding_completed_at' => null,
             ]);
 
             $tenant->serviceCategories()->createMany([
@@ -84,7 +86,7 @@ class SignupRequestController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return redirect()->route('onboarding.show', ['step' => 'hours']);
     }
 
     private function uniqueTenantSlug(string $name): string

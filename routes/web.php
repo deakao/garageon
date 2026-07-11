@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\NewPasswordController;
 use App\Http\Controllers\Admin\PasswordResetLinkController;
 use App\Http\Controllers\Chat\ConnectionController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SignupRequestController;
 use App\Mail\QuoteSharedMail;
 use App\Models\Appointment;
@@ -289,6 +290,20 @@ Route::post('/admin/redefinir-senha', [NewPasswordController::class, 'store'])
 Route::post('/admin/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+Route::middleware('auth')->prefix('onboarding')->name('onboarding.')->group(function () {
+    Route::get('/configurar-depois', [OnboardingController::class, 'showSkip'])->name('skip');
+    Route::post('/configurar-depois', [OnboardingController::class, 'dismiss'])->name('dismiss');
+
+    Route::put('/hours', [OnboardingController::class, 'updateHours'])->name('hours.update');
+    Route::post('/services', [OnboardingController::class, 'storeService'])->name('services.store');
+    Route::put('/logo', [OnboardingController::class, 'updateLogo'])->name('logo.update');
+    Route::put('/attendant', [OnboardingController::class, 'updateAttendant'])->name('attendant.update');
+    Route::put('/landing', [OnboardingController::class, 'updateLanding'])->name('landing.update');
+
+    Route::post('/{step}/skip', [OnboardingController::class, 'skipStep'])->name('skip-step');
+    Route::get('/{step}', [OnboardingController::class, 'show'])->name('show');
+});
 
 Route::get('/dashboard', function () {
     if (auth()->user()->isPlatformAdmin()) {

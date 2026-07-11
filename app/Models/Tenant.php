@@ -13,6 +13,14 @@ class Tenant extends Model
 {
     use HasFactory;
 
+    public const ONBOARDING_STEPS = [
+        'hours',
+        'services',
+        'logo',
+        'attendant',
+        'landing',
+    ];
+
     protected $fillable = [
         'plan_id',
         'name',
@@ -25,13 +33,89 @@ class Tenant extends Model
         'brand_colors',
         'status',
         'trial_ends_at',
+        'onboarding_step',
+        'onboarding_completed_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Tenant $tenant): void {
+            // Tenants criados fora do signup (seeders/testes) já nascem com onboarding concluído.
+            if ($tenant->onboarding_step === null && $tenant->onboarding_completed_at === null) {
+                $tenant->onboarding_completed_at = now();
+            }
+        });
+    }
 
     protected function casts(): array
     {
         return [
             'brand_colors' => 'array',
             'trial_ends_at' => 'datetime',
+            'onboarding_completed_at' => 'datetime',
+        ];
+    }
+
+    public function needsOnboarding(): bool
+    {
+        return $this->onboarding_completed_at === null;
+    }
+
+    public function markOnboardingStep(string $step): void
+    {
+        if (! in_array($step, self::ONBOARDING_STEPS, true)) {
+            throw new \InvalidArgumentException("Invalid onboarding step [{$step}].");
+        }
+
+        $this->forceFill([
+            'onboarding_step' => $step,
+            'onboarding_completed_at' => null,
+        ])->save();
+    }
+
+    public function completeOnboarding(): void
+    {
+        $this->forceFill([
+            'onboarding_step' => null,
+            'onboarding_completed_at' => now(),
+        ])->save();
+    }
+
+    public function nextOnboardingStep(?string $current = null): ?string
+    {
+        $current ??= $this->onboarding_step ?? self::ONBOARDING_STEPS[0];
+        $index = array_search($current, self::ONBOARDING_STEPS, true);
+
+        if ($index === false) {
+            return self::ONBOARDING_STEPS[0];
+        }
+
+        return self::ONBOARDING_STEPS[$index + 1] ?? null;
+    }
+
+    public function previousOnboardingStep(?string $current = null): ?string
+    {
+        $current ??= $this->onboarding_step ?? self::ONBOARDING_STEPS[0];
+        $index = array_search($current, self::ONBOARDING_STEPS, true);
+
+        if ($index === false || $index === 0) {
+            return null;
+        }
+
+        return self::ONBOARDING_STEPS[$index - 1];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function onboardingChecklist(): array
+    {
+        return [
+            'hours' => $this->operatingHours()->exists(),
+            'services' => $this->services()->where('is_active', true)->exists(),
+            'logo' => filled($this->logo_path),
+            'attendant' => $this->virtualAttendant()->exists(),
+            'landing' => $this->landingPage()->exists(),
         ];
     }
 

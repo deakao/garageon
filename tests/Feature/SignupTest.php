@@ -12,7 +12,7 @@ class SignupTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_client_can_create_password_and_is_redirected_to_dashboard_logged_in(): void
+    public function test_client_can_create_password_and_is_redirected_to_onboarding_logged_in(): void
     {
         $this->post(route('signup.store'), [
             'owner_name' => 'Dono Carbon',
@@ -24,7 +24,7 @@ class SignupTest extends TestCase
             'business_type' => 'Detailing',
             'monthly_leads' => '51 a 150',
             'main_challenge' => 'Organizar agenda',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('onboarding.show', ['step' => 'hours']));
 
         $user = User::where('email', 'dono@carbon.test')->firstOrFail();
         $tenant = Tenant::where('slug', 'carbon-detail')->firstOrFail();
@@ -33,14 +33,19 @@ class SignupTest extends TestCase
         $this->assertTrue(Hash::check('secure-password', $user->password));
         $this->assertTrue($tenant->users()->whereKey($user->id)->exists());
         $this->assertSame(3, $tenant->serviceCategories()->count());
+        $this->assertTrue($tenant->needsOnboarding());
+        $this->assertSame('hours', $tenant->onboarding_step);
         $this->assertDatabaseHas('signup_requests', [
             'email' => 'dono@carbon.test',
             'business_name' => 'Carbon Detail',
         ]);
 
         $this->get(route('dashboard'))
+            ->assertRedirect(route('onboarding.show', ['step' => 'hours']));
+
+        $this->get(route('onboarding.show', ['step' => 'hours']))
             ->assertOk()
-            ->assertSee('Carbon Detail já está ON.');
+            ->assertSee('Horários de funcionamento');
     }
 
     public function test_signup_requires_a_confirmed_password(): void
