@@ -68,6 +68,20 @@
                             {{ $link['label'] }}
                         </a>
                     @endforeach
+
+                    <div class="mt-1 border-t border-white/10 pt-1">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button
+                                type="submit"
+                                role="menuitem"
+                                class="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-black text-zinc-200 transition hover:bg-white/10 hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                            >
+                                <x-tabler-logout class="h-4 w-4 shrink-0" stroke-width="2.2" />
+                                Sair
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
