@@ -1,0 +1,30 @@
+on: 
+  push:
+    branches:
+      - master
+jobs:
+  checkout:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v1
+  
+  update:
+    runs-on: self-hosted
+    needs: checkout
+    steps:
+      - shell: bash
+        run: |
+          rsync -azP --exclude '.git' --exclude 'vendor' --exclude '.env' --exclude 'node_modules' --exclude 'storage' --exclude '.github' --exclude '.github/workflows' --exclude 'bootstrap' --exclude 'docs' --exclude 'tests' --exclude 'postman' /home/garageon/actions-runner/_work/garageon/garageon/ /home/garageon/www/
+
+  composer:
+    runs-on: self-hosted
+    needs: update
+    steps:
+      - shell: bash
+        run: |
+          cd /var/www/garageon
+          docker compose exec app composer install
+          npm install
+          npm run build
+          docker compose exec app php artisan migrate
+          docker compose exec app php artisan optimize:clear
