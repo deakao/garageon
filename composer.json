@@ -11,6 +11,7 @@
         "laravel/framework": "^13.8",
         "laravel/sail": "^1.63",
         "laravel/tinker": "^3.0",
+        "openspout/openspout": "^5.7",
         "resend/resend-php": "^1.5",
         "secondnetwork/blade-tabler-icons": "^3.44"
     },

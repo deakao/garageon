@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\NewPasswordController;
 use App\Http\Controllers\Admin\PasswordResetLinkController;
 use App\Http\Controllers\Chat\ConnectionController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\ServiceImportController;
 use App\Http\Controllers\SignupRequestController;
 use App\Mail\QuoteSharedMail;
 use App\Models\Appointment;
@@ -1800,6 +1801,9 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
 
         return back()->with('status', 'Serviço criado e pronto para agendamento.');
     })->name('services.store');
+
+    Route::post('/servicos/importar', [ServiceImportController::class, 'store'])->name('services.import');
+    Route::get('/servicos/exemplo/{format}', [ServiceImportController::class, 'example'])->name('services.example');
 
     Route::put('/servicos/{service}', function (Request $request, Service $service) {
         $tenant = auth()->user()->tenants()->firstOrFail();

@@ -18,7 +18,7 @@
                 <p class="mt-5 rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-5 py-4 text-sm font-bold text-yellow-100">{{ session('status') }}</p>
             @endif
 
-            @if ($errors->any() && ! $errors->getBag('categories')->any())
+            @if ($errors->any() && ! $errors->getBag('categories')->any() && ! $errors->getBag('import')->any())
                 <div class="mt-5 rounded-2xl border border-red-300/25 bg-red-300/10 px-5 py-4 text-sm text-red-100">
                     @foreach ($errors->all() as $message)
                         <p>{{ $message }}</p>
@@ -70,6 +70,9 @@
                         <p class="mt-1 text-sm text-zinc-400">Gerencie o catálogo usado na agenda, orçamentos e landing page.</p>
                     </div>
                     <div class="flex flex-wrap gap-2 sm:justify-end">
+                        <button type="button" data-modal-open="service-import-modal" class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-sm font-black text-zinc-200 transition hover:border-yellow-300/50 hover:text-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                            Importar planilha
+                        </button>
                         <button type="button" data-modal-open="category-modal" class="inline-flex shrink-0 items-center justify-center rounded-2xl border border-yellow-300/30 px-5 py-3 text-sm font-black text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">
                             Categorias
                         </button>
@@ -144,6 +147,47 @@
                     </table>
                 </div>
             </section>
+
+            <dialog id="service-import-modal" class="customer-modal w-[min(94vw,680px)] rounded-[28px] border border-yellow-300/25 bg-[#101010] p-0 text-white shadow-2xl shadow-black/70 backdrop:bg-black/80 backdrop:backdrop-blur-sm" @if ($errors->getBag('import')->any()) open @endif>
+                <form method="POST" action="{{ route('settings.services.import') }}" enctype="multipart/form-data" class="p-6 sm:p-8">
+                    @csrf
+                    <div class="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+                        <div>
+                            <p class="font-orbitron text-xs font-black uppercase tracking-[.28em] text-yellow-300">Importação em lote</p>
+                            <h2 class="mt-2 text-2xl font-black">Suba seu catálogo</h2>
+                            <p class="mt-2 text-sm leading-6 text-zinc-400">Use o modelo para importar até 1.000 serviços. Novas categorias serão criadas automaticamente.</p>
+                        </div>
+                        <button type="button" data-modal-close class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full border border-white/10 text-xl text-zinc-300 transition hover:border-yellow-300 hover:text-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-300" aria-label="Fechar">×</button>
+                    </div>
+
+                    @if ($errors->getBag('import')->any())
+                        <div class="mt-5 rounded-2xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
+                            @foreach ($errors->getBag('import')->all() as $message)
+                                <p>{{ $message }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="mt-6 rounded-2xl border border-white/10 bg-black/35 p-4">
+                        <p class="text-sm font-black text-white">Baixe um arquivo pronto para preencher</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <a href="{{ route('settings.services.example', 'xlsx') }}" class="inline-flex cursor-pointer items-center rounded-xl border border-yellow-300/30 px-4 py-2 text-sm font-bold text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">Exemplo XLSX</a>
+                            <a href="{{ route('settings.services.example', 'csv') }}" class="inline-flex cursor-pointer items-center rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-zinc-200 transition hover:border-white/30 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-300">Exemplo CSV</a>
+                        </div>
+                    </div>
+
+                    <label class="mt-5 block">
+                        <span class="text-sm font-bold text-zinc-200">Planilha de serviços</span>
+                        <input type="file" name="file" required accept=".csv,.xlsx" class="mt-2 block w-full cursor-pointer rounded-2xl border border-dashed border-white/15 bg-black/40 px-4 py-4 text-sm text-zinc-300 file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-yellow-300 file:px-4 file:py-2 file:font-black file:text-black hover:border-yellow-300/40 focus:outline-none focus:ring-2 focus:ring-yellow-300">
+                        <span class="mt-2 block text-xs text-zinc-500">Formatos aceitos: .xlsx e .csv, até 5 MB.</span>
+                    </label>
+
+                    <div class="mt-6 flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
+                        <button type="button" data-modal-close class="cursor-pointer rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/25 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-300">Cancelar</button>
+                        <button class="cursor-pointer rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-yellow-300">Importar serviços</button>
+                    </div>
+                </form>
+            </dialog>
 
             <dialog id="service-create-modal" class="customer-modal w-[min(94vw,980px)] rounded-[28px] border border-yellow-300/25 bg-[#101010] p-0 text-white shadow-2xl shadow-black/70 backdrop:bg-black/80 backdrop:backdrop-blur-sm">
                 <form method="POST" action="{{ route('settings.services.store') }}" enctype="multipart/form-data" class="p-6 sm:p-8">

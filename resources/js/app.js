@@ -586,6 +586,32 @@ document.querySelectorAll('[data-phone-mask]').forEach((input) => {
     input.addEventListener('input', () => formatPhoneInput(input));
 });
 
+document.querySelectorAll('[data-hours-form]').forEach((form) => {
+    form.addEventListener('input', (event) => {
+        const source = event.target.closest('[data-hour-field]');
+        const sourceDay = Number(source?.closest('[data-hour-day]')?.dataset.hourDay);
+
+        if (! source || sourceDay < 1 || sourceDay > 5 || ! form.querySelector('[data-replicate-weekdays]')?.checked) {
+            return;
+        }
+
+        form.querySelectorAll('[data-hour-day]').forEach((row) => {
+            const day = Number(row.dataset.hourDay);
+            const target = row.querySelector(`[data-hour-field="${source.dataset.hourField}"]`);
+
+            if (day < 1 || day > 5 || ! target) {
+                return;
+            }
+
+            if (source.type === 'checkbox') {
+                target.checked = source.checked;
+            } else {
+                target.value = source.value;
+            }
+        });
+    });
+});
+
 document.querySelector('[data-sale-date]')?.addEventListener('change', refreshSaleDatetimeLabel);
 document.querySelector('[data-sale-time]')?.addEventListener('change', refreshSaleDatetimeLabel);
 refreshSaleDatetimeLabel();
