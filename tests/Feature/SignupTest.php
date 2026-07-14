@@ -33,6 +33,8 @@ class SignupTest extends TestCase
         $this->assertTrue(Hash::check('secure-password', $user->password));
         $this->assertTrue($tenant->users()->whereKey($user->id)->exists());
         $this->assertSame(3, $tenant->serviceCategories()->count());
+        $this->assertSame(3, $tenant->quoteFunnelAutomations()->count());
+        $this->assertTrue($tenant->quoteFunnelAutomations()->where('name', 'Follow-up WhatsApp em 1 dia')->exists());
         $this->assertTrue($tenant->needsOnboarding());
         $this->assertSame('hours', $tenant->onboarding_step);
         $this->assertDatabaseHas('signup_requests', [

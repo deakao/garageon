@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
+use App\Models\QuoteFunnelAutomation;
 use App\Models\SignupRequest;
 use App\Models\Tenant;
 use App\Models\User;
@@ -71,6 +72,8 @@ class SignupRequestController extends Controller
                 ['name' => 'Proteção', 'slug' => 'protecao'],
                 ['name' => 'Pintura', 'slug' => 'pintura'],
             ]);
+
+            $tenant->quoteFunnelAutomations()->createMany(QuoteFunnelAutomation::seedBlueprints());
 
             $user = User::create([
                 'name' => $validated['owner_name'],

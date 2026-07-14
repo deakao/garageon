@@ -88,8 +88,8 @@
     </div>
 </header>
 
-@if (! defined('garageon_cockpit_modals'))
-    @php(define('garageon_cockpit_modals', true))
+@once
     @include('garageon.dashboard.sale-modal')
     @include('garageon.dashboard.quote-modal')
-@endif
+    @include('garageon.dashboard.quick-service-modal')
+@endonce

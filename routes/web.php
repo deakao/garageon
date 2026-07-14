@@ -1033,6 +1033,37 @@ Route::post('/dashboard/agendamentos', function (Request $request) use ($validat
     return back()->with('status', 'Agendamento criado e agenda atualizada.');
 })->middleware('auth')->name('appointments.store');
 
+Route::post('/dashboard/servicos/rapido', function (Request $request) {
+    if ($request->user()->isPlatformAdmin()) {
+        abort(403);
+    }
+
+    $tenant = $request->user()->tenants()->firstOrFail();
+    $validated = $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+        'description' => ['nullable', 'string', 'max:1000'],
+    ]);
+
+    $category = $tenant->serviceCategories()->firstOrCreate(
+        ['name' => 'Sem categoria'],
+        ['slug' => 'sem-categoria'],
+    );
+
+    $service = $tenant->services()->create([
+        ...$validated,
+        'slug' => Str::slug($validated['name']).'-'.Str::lower(Str::random(5)),
+        'duration_minutes' => 60,
+        'loyalty_points' => 0,
+        'category' => $category->name,
+        'is_active' => true,
+    ]);
+
+    return response()->json([
+        'service' => $service->only(['id', 'name', 'price', 'duration_minutes']),
+    ], 201);
+})->middleware('auth')->name('services.quick-store');
+
 Route::put('/dashboard/agendamentos/{appointment}', function (Request $request, Appointment $appointment) use ($validateDashboardAppointment, $buildDashboardAppointment) {
     if (auth()->user()->isPlatformAdmin()) {
         abort(403);

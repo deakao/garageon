@@ -5,12 +5,8 @@ namespace App\Services;
 use App\Models\VirtualAttendant;
 
 /**
- * Monta o system prompt do atendente virtual: papel, tom de voz, regras de
- * agendamento (as tools que o modelo pode usar) e o contexto livre da loja.
- *
- * As ferramentas descritas aqui (consultar_disponibilidade / criar_agendamento)
- * serão ligadas de fato ao LLM na fase 2 via Laravel AI SDK; o prompt já as
- * documenta para que o comportamento fique consistente quando forem plugadas.
+ * Monta o system prompt do atendente virtual: papel, tom de voz, ferramentas
+ * disponíveis e o contexto livre da loja.
  */
 class AttendantPromptBuilder
 {
@@ -18,6 +14,8 @@ class AttendantPromptBuilder
     {
         $store = $attendant->tenant?->name ?: 'a loja';
         $tone = $attendant->tone->instruction();
+        $now = now()->toIso8601String();
+        $timezone = config('app.timezone');
 
         $sections = [];
 
@@ -28,11 +26,14 @@ class AttendantPromptBuilder
         Tom de voz: {$tone}
         TXT;
 
-        $sections[] = <<<'TXT'
+        $sections[] = <<<TXT
         Ferramentas disponíveis:
         - consultar_servicos: use quando o cliente perguntar o que a loja oferece ou quanto custa. Nunca invente serviços nem preços.
         - consultar_disponibilidade: use para listar horários livres antes de propor uma data ao cliente. Nunca invente horários; só ofereça o que a ferramenta retornar.
         - criar_agendamento: use somente após o cliente confirmar serviço, data e horário exatos. Confirme os dados em uma frase antes de efetivar.
+        - ScheduleFollowUp: use quando o cliente pedir para retomar a conversa em uma data ou após um período. Converta o pedido para uma data e hora exatas em ISO 8601 e inclua um resumo do assunto.
+
+        Data e hora atuais: {$now} ({$timezone}).
 
         Regras:
         - Responda sempre em português do Brasil, em mensagens curtas adequadas ao WhatsApp.
@@ -40,6 +41,7 @@ class AttendantPromptBuilder
         - Nunca prometa preço, prazo ou horário que não venha das ferramentas ou do contexto da loja.
         - Se não souber ou não puder resolver, ofereça encaminhar para um atendente humano.
         - Peça nome e, quando fizer sentido, o veículo do cliente para registrar o agendamento.
+        - Em períodos relativos, preserve o horário atual. Se o cliente informar uma data sem horário, use 10:00.
         TXT;
 
         if ($attendant->require_booking_confirmation) {

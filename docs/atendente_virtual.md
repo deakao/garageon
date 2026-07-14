@@ -11,6 +11,7 @@ Cada loja pode ligar um "piloto automático" que:
 - responde mensagens recebidas no WhatsApp em nome da loja;
 - consulta serviços e preços da loja;
 - consulta horários livres e cria agendamentos reais;
+- agenda follow-ups dinâmicos quando o cliente pede para retomar a conversa depois;
 - respeita um tom de voz e um contexto configurados pelo lojista;
 - opera dentro de um limite diário de respostas (por plano) ou de forma
   ilimitada quando o lojista traz a própria chave de IA.
@@ -53,6 +54,7 @@ webhook nem estourar timeout com a latência do LLM.
 | Tool: serviços | `app/Ai/Tools/ListServices.php` |
 | Tool: disponibilidade | `app/Ai/Tools/CheckAvailability.php` |
 | Tool: agendar | `app/Ai/Tools/BookAppointment.php` |
+| Tool: follow-up | `app/Ai/Tools/ScheduleFollowUp.php` |
 | Disponibilidade/agenda | `app/Services/BookingAvailability.php` |
 | Job de resposta | `app/Jobs/RespondWithAttendant.php` |
 | Cota diária | `app/Services/AttendantUsage.php` |
@@ -119,6 +121,9 @@ O agent tem 3 tools, chamadas nessa ordem lógica:
 3. **`BookAppointment`** (`criar_agendamento`) — cria o `Appointment` real.
    O cliente é resolvido/criado pelo telefone da conversa; o slot é revalidado
    antes de gravar (retorna erro se o horário caiu).
+4. **`ScheduleFollowUp`** — agenda na fila uma nova execução do atendente para a
+   data e hora solicitadas. Na execução, o atendente usa o histórico e o resumo
+   do assunto para retomar a conversa e envia a mensagem pelo mesmo fluxo.
 
 `BookingAvailability` é a fonte única de disponibilidade/criação de
 agendamento, compartilhada entre a agenda pública (landing), o dashboard e o

@@ -241,12 +241,12 @@
                 </label>
 
                 @if ($services->isEmpty())
-                    <p class="rounded-2xl border border-red-300/20 bg-red-300/10 px-4 py-3 text-sm text-red-100">Cadastre um serviço ativo antes de criar agendamentos.</p>
+                    <p data-services-empty-warning class="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm text-yellow-100">Escolha “Cadastrar novo serviço” no seletor para criar o primeiro sem sair daqui.</p>
                 @endif
 
                 <div class="flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
                     <button type="button" data-appointment-close class="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:border-white/25 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-300">Cancelar</button>
-                    <button type="submit" data-appointment-submit @disabled($services->isEmpty()) class="rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-300/20 focus:outline-none focus:ring-2 focus:ring-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">Salvar agendamento</button>
+                    <button type="submit" data-appointment-submit data-requires-services-submit @disabled($services->isEmpty()) class="rounded-2xl bg-yellow-300 px-5 py-3 font-orbitron text-sm font-black uppercase tracking-[.16em] text-black transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-yellow-300/20 focus:outline-none focus:ring-2 focus:ring-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">Salvar agendamento</button>
                 </div>
             </form>
             </div>

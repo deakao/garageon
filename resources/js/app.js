@@ -186,6 +186,91 @@ const reindexQuoteServiceRows = (editor) => {
     });
 };
 
+const quickServiceModal = document.querySelector('[data-quick-service-modal]');
+const quickServiceForm = document.querySelector('[data-quick-service-form]');
+const quickServiceErrors = document.querySelector('[data-quick-service-errors]');
+const quickServiceSubmit = document.querySelector('[data-quick-service-submit]');
+const quickServiceValue = '__quick_service__';
+let quickServiceTarget;
+
+const quickServiceSelects = () => {
+    const selects = [...document.querySelectorAll('[data-quote-modal] [data-quote-service-select], [data-appointment-modal] [data-quote-service-select]')];
+
+    document.querySelectorAll('[data-quote-modal] [data-quote-service-template], [data-appointment-modal] [data-quote-service-template]').forEach((template) => {
+        template.content.querySelectorAll('[data-quote-service-select]').forEach((select) => {
+            select.dataset.quickServiceContext = template.closest('[data-appointment-modal]') ? 'appointment' : 'quote';
+            selects.push(select);
+        });
+    });
+
+    return selects;
+};
+
+const ensureQuickServiceOptions = () => {
+    quickServiceSelects().forEach((select) => {
+        if (! select.querySelector(`option[value="${quickServiceValue}"]`)) {
+            select.add(new Option('+ Cadastrar novo serviço', quickServiceValue));
+        }
+    });
+};
+
+const addQuickServiceToSelect = (select, service) => {
+    if (select.querySelector(`option[value="${service.id}"]`)) {
+        return;
+    }
+
+    const isAppointment = Boolean(select.closest('[data-appointment-modal]')) || select.dataset.quickServiceContext === 'appointment';
+    const label = isAppointment
+        ? `${service.name} · ${service.duration_minutes} min`
+        : `${service.name} · ${formatQuoteMoney(Number(service.price))}`;
+    const option = new Option(label, service.id);
+    option.dataset.price = service.price;
+    option.dataset.durationMinutes = service.duration_minutes;
+    select.add(option, select.querySelector(`option[value="${quickServiceValue}"]`));
+};
+
+ensureQuickServiceOptions();
+
+quickServiceForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    quickServiceSubmit.disabled = true;
+    quickServiceSubmit.textContent = 'Cadastrando...';
+    quickServiceErrors.classList.add('hidden');
+
+    try {
+        const response = await fetch(quickServiceForm.action, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            body: new FormData(quickServiceForm),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (! response.ok) {
+            const messages = Object.values(payload.errors ?? {}).flat();
+            throw new Error(messages.join(' ') || 'Não consegui cadastrar o serviço. Tente novamente.');
+        }
+
+        ensureQuickServiceOptions();
+        quickServiceSelects().forEach((select) => addQuickServiceToSelect(select, payload.service));
+
+        if (quickServiceTarget) {
+            quickServiceTarget.value = payload.service.id;
+            quickServiceTarget.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        document.querySelectorAll('[data-requires-services-submit]').forEach((button) => { button.disabled = false; });
+        document.querySelectorAll('[data-services-empty-warning]').forEach((warning) => warning.remove());
+        quickServiceForm.reset();
+        quickServiceModal.close();
+    } catch (error) {
+        quickServiceErrors.textContent = error.message;
+        quickServiceErrors.classList.remove('hidden');
+    } finally {
+        quickServiceSubmit.disabled = false;
+        quickServiceSubmit.textContent = 'Cadastrar serviço';
+    }
+});
+
 const initVehicleLookup = (lookup) => {
     const url = lookup.dataset.vehicleLookupUrl;
     const plate = lookup.querySelector('[data-vehicle-plate]');
@@ -625,6 +710,17 @@ document.addEventListener('change', (event) => {
     const select = event.target.closest('[data-quote-service-select]');
 
     if (select) {
+        if (select.value === quickServiceValue && quickServiceModal) {
+            quickServiceTarget = select;
+            select.value = '';
+            quickServiceForm.reset();
+            quickServiceErrors.classList.add('hidden');
+            quickServiceModal.showModal();
+            quickServiceForm.elements.name.focus();
+
+            return;
+        }
+
         refreshQuoteTotalForEditor(select.closest('[data-quote-service-editor]'));
     }
 });
@@ -713,6 +809,7 @@ document.addEventListener('click', (event) => {
         const index = Date.now();
 
         list?.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', index));
+        ensureQuickServiceOptions();
         reindexQuoteServiceRows(editor);
         refreshQuoteTotalForEditor(editor);
 

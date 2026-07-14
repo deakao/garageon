@@ -5,6 +5,7 @@ namespace App\Ai\Agents;
 use App\Ai\Tools\BookAppointment;
 use App\Ai\Tools\CheckAvailability;
 use App\Ai\Tools\ListServices;
+use App\Ai\Tools\ScheduleFollowUp;
 use App\Models\VirtualAttendant;
 use App\Models\WhatsappConversation;
 use App\Services\AttendantPromptBuilder;
@@ -68,6 +69,7 @@ class StoreAttendant implements Agent, Conversational, HasTools
             new ListServices($this->attendant->tenant),
             new CheckAvailability($this->attendant->tenant),
             new BookAppointment($this->attendant, $this->conversation),
+            new ScheduleFollowUp($this->attendant, $this->conversation),
         ];
     }
 }
