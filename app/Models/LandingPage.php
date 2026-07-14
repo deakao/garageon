@@ -18,6 +18,7 @@ class LandingPage extends Model
         'cta_label',
         'sections',
         'testimonials',
+        'google_place_id',
         'seo_title',
         'seo_description',
         'seo_keywords',

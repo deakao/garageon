@@ -13,7 +13,7 @@ Ela deve permitir que cada tenant publique uma vitrine com:
 - SEO basico;
 - scripts de analytics, pixel e JavaScript personalizado;
 - categorias e servicos cadastrados no cockpit;
-- depoimentos editaveis;
+- depoimentos reais do Google Maps ou editaveis como fallback;
 - FAB de WhatsApp com captura de lead;
 - agendamento publico com calendario e horarios disponiveis.
 
@@ -62,6 +62,7 @@ Campos principais:
 - `hero_badge_body`: descricao do card/selo.
 - `cta_label`: texto do CTA principal.
 - `testimonials`: lista JSON de depoimentos exibidos na landing publica.
+- `google_place_id`: Place ID da loja usado para buscar avaliacoes reais na Places API.
 - `seo_title`: titulo usado em `<title>` e Open Graph.
 - `seo_description`: meta description e Open Graph description.
 - `seo_keywords`: keywords.
@@ -71,6 +72,14 @@ Campos principais:
 - `published_at`: indica publicacao.
 
 ### Depoimentos
+
+Quando `google_place_id` e `GOOGLE_PLACES_API_KEY` estao configurados, a landing busca ao vivo ate 5 avaliacoes ordenadas por relevancia pela Places API (New). A pagina exibe autor, avatar quando fornecido, nota, data relativa, link da avaliacao e atribuicao ao Google Maps. O conteudo nao e armazenado em cache por restricao dos termos da API. Se a chamada falhar ou nao retornar avaliacoes com texto, os depoimentos manuais sao usados como fallback.
+
+Configuracao da plataforma:
+
+- habilitar a Places API (New) e faturamento no Google Cloud;
+- preencher `GOOGLE_PLACES_API_KEY` com uma chave restrita ao IP do servidor e a Places API;
+- cada tenant informa apenas seu `google_place_id` no editor da landing.
 
 Cada item de `testimonials` aceita:
 

@@ -25,6 +25,7 @@
             'analytics_head' => old('analytics_head', $landingPage?->analytics_head ?? ''),
             'conversion_pixel' => old('conversion_pixel', $landingPage?->conversion_pixel ?? ''),
             'custom_javascript' => old('custom_javascript', $landingPage?->custom_javascript ?? ''),
+            'google_place_id' => old('google_place_id', $landingPage?->google_place_id ?? ''),
         ];
         $testimonials = collect(old('testimonials', $landingPage?->testimonials ?: $defaultTestimonials))
             ->map(fn ($item) => [
@@ -131,6 +132,23 @@
                     @method('PUT')
 
                     <section class="rounded-[28px] border border-white/10 bg-white/[.05] p-6 shadow-2xl shadow-black/30">
+                        <div class="mb-6 rounded-3xl border border-yellow-300/20 bg-yellow-300/[.06] p-5">
+                            <p class="font-orbitron text-xs font-black uppercase tracking-[.2em] text-yellow-300">Perfil da Empresa no Google</p>
+                            <h2 class="mt-2 text-xl font-black">Avaliações reais, direto do Google Maps</h2>
+                            <p class="mt-2 text-sm leading-6 text-zinc-400">Informe o Place ID da loja. Quando a integração estiver ativa, a landing mostra até 5 avaliações relevantes do Google e mantém os depoimentos manuais abaixo como fallback.</p>
+
+                            <label class="mt-4 block">
+                                <span class="text-sm font-bold text-zinc-200">Google Place ID</span>
+                                <input name="google_place_id" value="{{ $landingValues['google_place_id'] }}" maxlength="255" placeholder="Ex.: ChIJN1t_tDeuEmsRUsoyG83frY4" class="mt-2 w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-300 focus:ring-2 focus:ring-yellow-300/30">
+                                <span class="mt-2 block text-xs leading-5 text-zinc-500">Encontre o código no <a href="https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder" target="_blank" rel="noopener noreferrer" class="cursor-pointer font-bold text-yellow-300 hover:text-yellow-100">localizador oficial do Google</a>. A chave da Places API é configurada uma vez pela plataforma.</span>
+                                @error('google_place_id') <span class="mt-2 block text-xs text-red-300">Use apenas letras, números, hífen e sublinhado no Place ID.</span> @enderror
+                            </label>
+
+                            @unless (config('services.google_places.api_key'))
+                                <p class="mt-4 rounded-2xl border border-amber-300/20 bg-black/30 px-4 py-3 text-xs font-bold text-amber-100">A integração ficará pronta após configurar <code>GOOGLE_PLACES_API_KEY</code> no ambiente da plataforma.</p>
+                            @endunless
+                        </div>
+
                         <div class="flex flex-col gap-3 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
                             <div>
                                 <p class="font-orbitron text-xs font-black uppercase tracking-[.24em] text-yellow-300">Hero</p>
@@ -222,7 +240,7 @@
                             <div>
                                 <p class="font-orbitron text-xs font-black uppercase tracking-[.24em] text-yellow-300">Depoimentos</p>
                                 <h2 class="mt-2 text-2xl font-black">Prova social na landing</h2>
-                                <p class="mt-1 text-sm text-zinc-400">Mostre o que clientes reais dizem. A seção só aparece na loja quando houver nome e depoimento preenchidos.</p>
+                                <p class="mt-1 text-sm text-zinc-400">Cadastre depoimentos manuais para usar quando o Google não estiver configurado ou disponível.</p>
                             </div>
                             <button type="button" data-testimonial-add class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-yellow-300/30 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-200 transition hover:bg-yellow-300 hover:text-black focus:outline-none focus:ring-2 focus:ring-yellow-300">
                                 Adicionar depoimento

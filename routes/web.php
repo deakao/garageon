@@ -32,6 +32,7 @@ use App\Services\AttendantPromptBuilder;
 use App\Services\AttendantUsage;
 use App\Services\BookingAvailability;
 use App\Services\EvolutionGoClient;
+use App\Services\GooglePlacesReviews;
 use App\Services\QuoteFunnelAutomationRunner;
 use App\Services\VehiclePlateLookup;
 use App\Support\WhatsappPhone;
@@ -79,10 +80,13 @@ $findTenantByCustomDomain = function (Request $request) use ($normalizeCustomDom
 };
 
 $renderStorefront = function (Tenant $tenant, bool $customDomain = false) use ($buildPublicBookingAvailability) {
+    $tenant->load(['landingPage', 'services', 'serviceCategories']);
+
     return view('garageon.storefront', [
-        'tenant' => $tenant->load(['landingPage', 'services', 'serviceCategories']),
+        'tenant' => $tenant,
         'bookingAvailability' => $buildPublicBookingAvailability($tenant),
         'customDomain' => $customDomain,
+        'googleReviews' => app(GooglePlacesReviews::class)->forPlace($tenant->landingPage?->google_place_id),
     ]);
 };
 
@@ -1640,6 +1644,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
             'testimonials.*.role' => ['nullable', 'string', 'max:80'],
             'testimonials.*.quote' => ['nullable', 'string', 'max:500'],
             'testimonials.*.rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'google_place_id' => ['nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9_-]+$/'],
             'seo_title' => ['nullable', 'string', 'max:70'],
             'seo_description' => ['nullable', 'string', 'max:160'],
             'seo_keywords' => ['nullable', 'string', 'max:255'],
@@ -1684,6 +1689,7 @@ Route::middleware('auth')->prefix('configuracoes')->name('settings.')->group(fun
                 'hero_badge_body' => $validated['hero_badge_body'] ?? null,
                 'cta_label' => $validated['cta_label'],
                 'testimonials' => $testimonials,
+                'google_place_id' => $validated['google_place_id'] ?? null,
                 'seo_title' => $validated['seo_title'] ?? null,
                 'seo_description' => $validated['seo_description'] ?? null,
                 'seo_keywords' => $validated['seo_keywords'] ?? null,

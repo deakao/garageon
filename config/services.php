@@ -47,6 +47,10 @@ return [
         'cname_target' => env('GARAGEON_CNAME_TARGET'),
     ],
 
+    'google_places' => [
+        'api_key' => env('GOOGLE_PLACES_API_KEY'),
+    ],
+
     'evolution_go' => [
         'url' => env('EVOLUTION_GO_URL'),
         'api_key' => env('EVOLUTION_GO_API_KEY'),

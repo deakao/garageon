@@ -39,6 +39,7 @@
         })->filter(fn (array $section) => $section['services']->isNotEmpty())->values();
         $servicesAnchor = $serviceSections->first()['id'] ?? 'servicos';
         $testimonials = $landingPage?->publishedTestimonials() ?? [];
+        $hasTestimonials = ! empty($googleReviews['reviews']) || count($testimonials) > 0;
         $storeWhatsappPhone = \App\Support\WhatsappPhone::normalize($tenant->whatsapp_phone);
         $whatsappLeadAction = ($customDomain ?? false)
             ? route('storefront.custom.whatsapp-lead.store')
@@ -87,7 +88,7 @@
                 @foreach ($serviceSections->take(3) as $section)
                     <a href="#{{ $section['id'] }}" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">{{ $section['name'] }}</a>
                 @endforeach
-                @if (count($testimonials) > 0)
+                @if ($hasTestimonials)
                     <a href="#depoimentos" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">Depoimentos</a>
                 @endif
                 <a href="#contato" class="cursor-pointer transition hover:text-white focus:outline-none focus:ring-2 focus:ring-black/40">Contato</a>
@@ -194,33 +195,90 @@
             </section>
         @endforelse
 
-        @if (count($testimonials) > 0)
+        @if ($hasTestimonials)
             <section id="depoimentos" class="bg-[#242526] px-6 py-16 lg:px-8" aria-labelledby="testimonials-title">
                 <div class="mx-auto max-w-6xl">
                     <div class="mx-auto max-w-3xl text-center">
                         <p class="text-xs font-medium uppercase tracking-[.24em] text-[#ffcc00]">Depoimentos</p>
                         <h2 id="testimonials-title" class="title-orbitron mt-4 text-3xl text-white md:text-4xl">O que nossos clientes dizem</h2>
-                        <p class="mt-3 text-sm font-normal leading-6 text-zinc-300">Resultados reais de quem confiou o carro à {{ $tenant->name }}.</p>
+                        @if (! empty($googleReviews['reviews']))
+                            <div class="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-zinc-300">
+                                @if ($googleReviews['rating'])
+                                    <strong class="font-orbitron text-2xl text-[#ffcc00]">{{ number_format($googleReviews['rating'], 1, ',', '.') }}</strong>
+                                    <span class="text-[#ffcc00]" aria-label="{{ $googleReviews['rating'] }} de 5 estrelas">★★★★★</span>
+                                @endif
+                                <span>{{ number_format($googleReviews['user_rating_count'], 0, ',', '.') }} avaliações</span>
+                                <a href="{{ $googleReviews['google_maps_uri'] }}" target="_blank" rel="noopener noreferrer" translate="no" class="cursor-pointer whitespace-nowrap text-sm font-normal text-white underline decoration-white/30 underline-offset-4 transition hover:text-[#ffcc00]">Google Maps</a>
+                            </div>
+                        @else
+                            <p class="mt-3 text-sm font-normal leading-6 text-zinc-300">Resultados reais de quem confiou o carro à {{ $tenant->name }}.</p>
+                        @endif
                     </div>
 
-                    <div class="mt-12 grid gap-6 md:grid-cols-2 {{ count($testimonials) > 2 ? 'lg:grid-cols-3' : '' }}">
-                        @foreach ($testimonials as $testimonial)
-                            <figure class="flex h-full flex-col rounded-md bg-black p-7 shadow-[0_18px_30px_rgba(0,0,0,.35)] ring-1 ring-white/5">
-                                <div class="text-[#ffcc00]" aria-label="{{ $testimonial['rating'] }} de 5 estrelas">
-                                    @for ($star = 1; $star <= 5; $star++)
-                                        <span aria-hidden="true">{{ $star <= $testimonial['rating'] ? '★' : '☆' }}</span>
-                                    @endfor
-                                </div>
-                                <blockquote class="mt-5 grow text-sm font-normal leading-7 text-zinc-200">"{{ $testimonial['quote'] }}"</blockquote>
-                                <figcaption class="mt-6 border-t border-white/10 pt-5">
-                                    <strong class="block text-sm font-semibold text-white">{{ $testimonial['name'] }}</strong>
-                                    @if ($testimonial['role'])
-                                        <span class="mt-1 block text-xs font-medium text-zinc-500">{{ $testimonial['role'] }}</span>
+                    @if (! empty($googleReviews['reviews']))
+                        <div class="mt-12 grid gap-6 md:grid-cols-2 {{ count($googleReviews['reviews']) > 2 ? 'lg:grid-cols-3' : '' }}">
+                            @foreach ($googleReviews['reviews'] as $review)
+                                <figure class="flex h-full flex-col rounded-md border border-white/10 bg-black p-7 shadow-[0_18px_30px_rgba(0,0,0,.35)]">
+                                    <figcaption class="flex items-center gap-3">
+                                        @if ($review['author_photo_uri'])
+                                            <img src="{{ $review['author_photo_uri'] }}" alt="" referrerpolicy="no-referrer" class="h-10 w-10 rounded-full object-cover" loading="lazy">
+                                        @endif
+                                        <div class="min-w-0">
+                                            @if ($review['author_uri'])
+                                                <a href="{{ $review['author_uri'] }}" target="_blank" rel="noopener noreferrer" class="block cursor-pointer truncate text-sm font-semibold text-white hover:text-[#ffcc00]">{{ $review['author_name'] }}</a>
+                                            @else
+                                                <strong class="block truncate text-sm font-semibold text-white">{{ $review['author_name'] }}</strong>
+                                            @endif
+                                            @if ($review['relative_time'])
+                                                <span class="mt-1 block text-xs text-zinc-500">{{ $review['relative_time'] }}</span>
+                                            @endif
+                                        </div>
+                                    </figcaption>
+                                    <div class="mt-5 text-[#ffcc00]" aria-label="{{ $review['rating'] }} de 5 estrelas">
+                                        @for ($star = 1; $star <= 5; $star++)
+                                            <span aria-hidden="true">{{ $star <= $review['rating'] ? '★' : '☆' }}</span>
+                                        @endfor
+                                    </div>
+                                    <blockquote class="mt-4 grow text-sm font-normal leading-7 text-zinc-200">"{{ $review['quote'] }}"</blockquote>
+                                    @if ($review['google_maps_uri'])
+                                        <a href="{{ $review['google_maps_uri'] }}" target="_blank" rel="noopener noreferrer" class="mt-6 cursor-pointer border-t border-white/10 pt-4 text-xs font-bold text-zinc-400 transition hover:text-[#ffcc00]">Ver avaliação no Google Maps →</a>
                                     @endif
-                                </figcaption>
-                            </figure>
-                        @endforeach
-                    </div>
+                                </figure>
+                            @endforeach
+                        </div>
+
+                        <div class="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs font-normal text-zinc-400">
+                            <span>Avaliações selecionadas e ordenadas por relevância pelo</span>
+                            <span translate="no" class="whitespace-nowrap text-xs font-normal tracking-normal text-white">Google Maps</span>
+                            @foreach ($googleReviews['attributions'] as $attribution)
+                                <span>·</span>
+                                @if ($attribution['provider_uri'])
+                                    <a href="{{ $attribution['provider_uri'] }}" target="_blank" rel="noopener noreferrer" class="cursor-pointer hover:text-white">{{ $attribution['provider'] }}</a>
+                                @else
+                                    <span>{{ $attribution['provider'] }}</span>
+                                @endif
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="mt-12 grid gap-6 md:grid-cols-2 {{ count($testimonials) > 2 ? 'lg:grid-cols-3' : '' }}">
+                            @foreach ($testimonials as $testimonial)
+                                <figure class="flex h-full flex-col rounded-md bg-black p-7 shadow-[0_18px_30px_rgba(0,0,0,.35)] ring-1 ring-white/5">
+                                    <div class="text-[#ffcc00]" aria-label="{{ $testimonial['rating'] }} de 5 estrelas">
+                                        @for ($star = 1; $star <= 5; $star++)
+                                            <span aria-hidden="true">{{ $star <= $testimonial['rating'] ? '★' : '☆' }}</span>
+                                        @endfor
+                                    </div>
+                                    <blockquote class="mt-5 grow text-sm font-normal leading-7 text-zinc-200">"{{ $testimonial['quote'] }}"</blockquote>
+                                    <figcaption class="mt-6 border-t border-white/10 pt-5">
+                                        <strong class="block text-sm font-semibold text-white">{{ $testimonial['name'] }}</strong>
+                                        @if ($testimonial['role'])
+                                            <span class="mt-1 block text-xs font-medium text-zinc-500">{{ $testimonial['role'] }}</span>
+                                        @endif
+                                    </figcaption>
+                                </figure>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </section>
         @endif

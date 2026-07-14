@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -178,6 +179,54 @@ class LandingPageSettingsTest extends TestCase
         $this->get(route('storefront', $tenant))
             ->assertOk()
             ->assertSee($heroImage, false);
+    }
+
+    public function test_storefront_displays_live_google_reviews_when_place_id_is_configured(): void
+    {
+        config(['services.google_places.api_key' => 'google-test-key']);
+        Http::fake([
+            'https://places.googleapis.com/v1/places/*' => Http::response([
+                'displayName' => ['text' => 'Carbon Studio Detail'],
+                'rating' => 4.9,
+                'userRatingCount' => 127,
+                'googleMapsUri' => 'https://maps.google.com/carbon',
+                'reviews' => [[
+                    'relativePublishTimeDescription' => 'há 2 semanas',
+                    'text' => ['text' => 'Atendimento impecável e carro brilhando.'],
+                    'rating' => 5,
+                    'authorAttribution' => [
+                        'displayName' => 'Ana Souza',
+                        'uri' => 'https://maps.google.com/ana',
+                        'photoUri' => 'https://example.com/ana.jpg',
+                    ],
+                    'googleMapsUri' => 'https://maps.google.com/carbon/review/1',
+                ]],
+            ]),
+        ]);
+
+        [$tenant, $user] = $this->createTenantUser();
+
+        $this->actingAs($user)
+            ->put(route('settings.landing.update'), [
+                'headline' => 'Proteção premium para carros exigentes',
+                'subheadline' => 'Agendamento online para lavagem técnica, vitrificação e manutenção.',
+                'cta_label' => 'Reservar agora',
+                'google_place_id' => 'ChIJGooglePlace123',
+            ])
+            ->assertRedirect();
+
+        $this->get(route('storefront', $tenant))
+            ->assertOk()
+            ->assertSee('4,9')
+            ->assertSee('127 avaliações')
+            ->assertSee('Ana Souza')
+            ->assertSee('Atendimento impecável e carro brilhando.')
+            ->assertSee('Ver avaliação no Google Maps')
+            ->assertSee('ordenadas por relevância');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://places.googleapis.com/v1/places/ChIJGooglePlace123?languageCode=pt-BR&regionCode=BR'
+            && $request->hasHeader('X-Goog-Api-Key', 'google-test-key')
+            && $request->hasHeader('X-Goog-FieldMask', 'displayName,rating,userRatingCount,googleMapsUri,reviews,attributions'));
     }
 
     public function test_storefront_booking_modal_can_create_public_appointment(): void
